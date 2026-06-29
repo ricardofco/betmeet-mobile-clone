@@ -7,21 +7,32 @@ import {
 } from '@/domain/auth/auth-claims';
 import { keychainSessionStorage } from '@/platform/supabase/keychain-session-storage';
 import { readSupabaseConfig } from '@/platform/supabase/config';
+import { classifySignUpOutcome, type SignUpResult } from '@/domain/auth/sign-up';
+import { classifySignInOutcome, type SignInResult } from '@/domain/auth/sign-in';
 
 /**
  * The single seam every Supabase interaction in this app must go through
  * (requirements.md §7.2 — binding NFR). No feature module imports the
  * Supabase SDK directly; everything goes through an instance of this
- * interface. Auth/storage/realtime *business* methods (sign-in, MFA, avatar
- * upload, realtime channel subscriptions, etc.) are added by the bolts that
- * need them — unit-01-auth (Bolt 1) adds the first ones. Bolt 0 only fixes
- * the shape of the seam and the one capability every later bolt depends on:
- * reading and observing the current session/claims.
+ * interface. Bolt 1 (unit-01-auth) adds the first business methods:
+ * `signUp`/`signInWithPassword`/`signOut` — each calls a domain classifier
+ * (`@/domain/auth/sign-up`, `@/domain/auth/sign-in`) internally and returns
+ * the already-classified `SignUpResult`/`SignInResult`, never a raw Supabase
+ * error, per ADR-003 (domain → classifies, platform → calls the SDK and
+ * hands off to the classifier, never the reverse).
+ *
+ * Resend-confirmation's cooldown is **not** a method here — it is enforced
+ * server-side via `BackendApiClient`'s `auth.resendConfirmation` capability
+ * (ADR-003); this adapter stays strictly Supabase-only (system-context.md §2).
  */
 export interface SupabaseAdapter {
   getSession(): Promise<AuthSession | null>;
   /** Returns an unsubscribe function. */
   onSessionChange(listener: (session: AuthSession | null) => void): () => void;
+
+  signUp(email: string, password: string): Promise<SignUpResult>;
+  signInWithPassword(email: string, password: string): Promise<SignInResult>;
+  signOut(): Promise<void>;
 }
 
 /**
@@ -78,6 +89,25 @@ class SupabaseAdapterImpl implements SupabaseAdapter {
     });
     return () => data.subscription.unsubscribe();
   }
+
+  async signUp(email: string, password: string): Promise<SignUpResult> {
+    const { data, error } = await this.client.auth.signUp({ email, password });
+    return classifySignUpOutcome(email, {
+      error: error ? { message: error.message } : null,
+      hasSession: data.session !== null,
+    });
+  }
+
+  async signInWithPassword(email: string, password: string): Promise<SignInResult> {
+    const { error } = await this.client.auth.signInWithPassword({ email, password });
+    return classifySignInOutcome(email, {
+      error: error ? { code: (error as { code?: string }).code, message: error.message } : null,
+    });
+  }
+
+  async signOut(): Promise<void> {
+    await this.client.auth.signOut();
+  }
 }
 
 let cachedAdapter: SupabaseAdapter | null = null;
@@ -96,7 +126,7 @@ export function getSupabaseAdapter(): SupabaseAdapter {
   if (!config) {
     throw new Error(
       '[SupabaseAdapter] Missing SUPABASE_URL/SUPABASE_ANON_KEY. ' +
-        'Bolt 0 only scaffolds this seam — wire real env-var injection in unit-01-auth before using it.',
+        'Add a root .env file (see .env.example) with real Supabase project values.',
     );
   }
 

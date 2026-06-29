@@ -3,16 +3,20 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { lazy, useState } from 'react';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { RemoteBoundary } from '@/host/remote-boundary';
+import { AuthGatedNavigator } from '@/host/auth/navigation/auth-gated-navigator';
+import type { AppStackParamList } from '@/host/auth/navigation/auth-stack-params';
 
 /**
  * ADR-003: React Navigation (native-stack) is the navigation library.
- * This is a placeholder root — unit-01-auth's AUTH-7 bolt replaces `HomeScreen`
- * with the real navigation-guard-gated tree (sign-in / onboarding / app).
- * Bolt 0's job is only to prove: (a) a native-stack navigator mounts, and
- * (b) a Module-Federation remote (education) can be loaded on demand with a
- * graceful fallback if it can't.
+ * ADR-001 (Bolt 1): `AuthGatedNavigator` is the root's first child — it
+ * decides which screen tree exists at all (unauthenticated / verify-email /
+ * onboarding / protected app) per AUTH-7's guard. `AppStack` below is the
+ * protected tree, rendered only once the guard says "proceed" (rule 6) or
+ * lets a pending-MFA session through (rule 4's exception). The Bolt 0
+ * education-remote demo is preserved here, inside the now-protected tree,
+ * rather than removed — it remains reachable once signed in.
  */
-const Stack = createNativeStackNavigator();
+const AppStack = createNativeStackNavigator<AppStackParamList>();
 
 // Loaded lazily so the host bundle never pays for the remote's code until
 // the user actually requests it (ADR-002).
@@ -23,7 +27,7 @@ function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Platform scaffolding — Bolt 0</Text>
+      <Text style={styles.title}>Liga Mundial</Text>
       <Text style={styles.subtitle}>
         Host bundle is running. Tap below to load the federated `education` remote.
       </Text>
@@ -39,12 +43,18 @@ function HomeScreen() {
   );
 }
 
+function AppTree() {
+  return (
+    <AppStack.Navigator>
+      <AppStack.Screen name="Home" component={HomeScreen} options={{ title: 'Liga Mundial' }} />
+    </AppStack.Navigator>
+  );
+}
+
 export function RootNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Liga Mundial' }} />
-      </Stack.Navigator>
+      <AuthGatedNavigator renderAppTree={() => <AppTree />} />
     </NavigationContainer>
   );
 }

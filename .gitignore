@@ -66,6 +66,9 @@ yarn-error.log
 # testing
 /coverage
 
+# Environment variables (react-native-config) — see .env.example
+.env
+
 # Yarn
 .yarn/*
 !.yarn/patches

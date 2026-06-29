@@ -1,23 +1,26 @@
 /**
  * Supabase project configuration.
  *
- * TODO(unit-01-auth bolt): wire real env-var injection (e.g. `react-native-config`
- * or a build-time `.env` loader) before any bolt that performs a real sign-in.
- * Bolt 0's job is to prove the SupabaseAdapter seam compiles and is the single
- * door into the Supabase SDK (requirements.md §7.2) — not to ship working auth.
- * Until real values are wired, `createSupabaseAdapter()` throws a clear error
- * rather than silently hitting an invalid endpoint.
+ * Env-var injection (unit-01-auth/Bolt 1): `react-native-config` reads a
+ * root `.env` file at native-build time and exposes its keys as a plain JS
+ * object — no Rspack/Metro bundler config needed (it's a native module, not
+ * a bundler-time `DefinePlugin` substitution), which keeps this working
+ * identically whether the host is built via Re.Pack or (legacy) Metro.
+ * `.env` itself is git-ignored; `.env.example` documents the required keys
+ * for a fresh checkout. Until a real `.env` is present, `readSupabaseConfig`
+ * returns `null` and `getSupabaseAdapter()` throws a clear error rather than
+ * silently constructing a client pointed at an invalid endpoint.
  */
+import Config from 'react-native-config';
+
 export type SupabaseConfig = {
   url: string;
   anonKey: string;
 };
 
-declare const process: { env: Record<string, string | undefined> };
-
 export function readSupabaseConfig(): SupabaseConfig | null {
-  const url = process.env.SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY;
+  const url = Config.SUPABASE_URL;
+  const anonKey = Config.SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
     return null;
   }
