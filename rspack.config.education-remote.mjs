@@ -1,6 +1,10 @@
-// Re.Pack — HOST app config (Module Federation v2).
+// Re.Pack — `education` REMOTE config (Module Federation v2).
 // Adapted from this plugin's `/repack-init` template
-// (templates/repack/rspack.config.host.mjs — see ADR-002).
+// (templates/repack/rspack.config.remote.mjs — see ADR-002).
+//
+// Bolt 0 scaffolds this remote as a near-empty shell to prove the host→remote
+// wiring works end-to-end. unit-09-education's real content (EDU-1..EDU-4)
+// lands in Bolt 11 — see src/remotes/education/EducationRemoteEntry.tsx.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,13 +15,8 @@ import pkg from './package.json' with { type: 'json' };
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Some dual ESM/CJS packages (e.g. @react-navigation/*) ship a bare
-// `{"type":"module"}` package.json inside their `lib/module/` ESM subpath.
-// When `enablePackageExports` resolves a shared dep to that subpath, MF's
-// version auto-detection finds that file first and gives up (no `version`
-// field), which leaves the shared module's registered version empty and
-// breaks the eager-consume match at runtime (RUNTIME-006). Resolving the
-// real installed version explicitly here sidesteps the auto-detection.
+// See the matching comment in rspack.config.mjs (the host) — keeps the
+// explicit `version` resolution for ESM dual-package shared deps in sync.
 function installedVersion(name) {
   return JSON.parse(readFileSync(path.resolve(__dirname, 'node_modules', name, 'package.json'), 'utf8')).version;
 }
@@ -28,7 +27,7 @@ export default Repack.defineRspackConfig((env) => {
   return {
     mode,
     context,
-    entry: './index.js',
+    entry: './src/remotes/education/index.js',
     resolve: {
       ...Repack.getResolveOptions({ enablePackageExports: true }),
       alias: {
@@ -36,8 +35,8 @@ export default Repack.defineRspackConfig((env) => {
       },
     },
     output: {
-      path: '[context]/build/host/[platform]',
-      uniqueName: 'BetmeetMobileHost',
+      path: '[context]/build/education/[platform]',
+      uniqueName: 'education',
     },
     module: {
       rules: [
@@ -56,31 +55,26 @@ export default Repack.defineRspackConfig((env) => {
     plugins: [
       new Repack.RepackPlugin({
         extraChunks: [
-          { include: /.*/, type: 'remote', outputPath: `build/host/${platform}/output-remote` },
+          { include: /.*/, type: 'remote', outputPath: `build/education/${platform}/output-remote` },
         ],
       }),
       new Repack.plugins.ModuleFederationPluginV2({
-        name: 'BetmeetMobileHost',
-        filename: 'BetmeetMobileHost.container.js.bundle',
-        // Remotes are resolved at runtime via ScriptManager (src/host/script-manager-setup.ts).
-        // Swap localhost for a CDN URL in production — see SETUP notes in
-        // memory-bank/bolts/bolt-0-platform-scaffolding/.
-        remotes: {
-          education: `education@http://localhost:8082/${platform}/mf-manifest.json`,
+        name: 'education',
+        filename: 'education.container.js.bundle',
+        exposes: {
+          // The host imports this via: const X = lazy(() => import('education/App'))
+          './App': './src/remotes/education/EducationRemoteEntry',
         },
         dts: false,
-        // Host shares its singletons EAGER so they load with the host bundle (ADR-002).
-        shared: sharedDeps(pkg, { eager: true }),
+        // Remote shares singletons NON-eager — it reuses the host's copy (ADR-002).
+        shared: sharedDeps(pkg, { eager: false }),
       }),
-      // @react-navigation/elements optionally requires this; ignored if unused.
       new rspack.IgnorePlugin({ resourceRegExp: /^@react-native-masked-view/ }),
     ],
   };
 });
 
-// Keep this list in sync with rspack.config.education-remote.mjs (ADR-002).
-// Versions must match (singletons) to avoid duplicate React/RN across
-// federated chunks.
+// Keep this list in sync with rspack.config.mjs (the host) — see ADR-002.
 function sharedDeps(pkg, { eager }) {
   const dep = (name) => ({
     singleton: true,
