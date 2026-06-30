@@ -3,8 +3,8 @@
 > **Agent note:** This is your long-term progress tracker. Update it whenever you complete a Bolt, close a phase, or reach a major milestone.
 
 ## Overall Status
-- **Current Phase:** Construction — **Bolt 3 (Profile & onboarding) closed at Layer 1.** Layer 2 deferred to manual verification (pod install pending — see activeContext.md). Bolt 4 or 5 next per bolt-plan sequencing.
-- **Bolts Completed:** 3.5 / 13 (Bolt 0 ✅, Bolt 1 ✅ both layers; Bolt 2 Layer 1 ✅ / Layer 2 pending manual; Bolt 3 Layer 1 ✅ / Layer 2 pending manual)
+- **Current Phase:** Construction — **Bolt 4 (Scoring package) closed at Layer 1.** Layer 2 deferred to manual verification (pure-logic package; Layer 2 paths require consuming screens from Bolt 6/9/11 — see activeContext.md). Bolt 5 (Competition read model) is next per bolt-plan sequencing.
+- **Bolts Completed:** 4.5 / 13 (Bolt 0 ✅, Bolt 1 ✅ both layers; Bolt 2 Layer 1 ✅ / Layer 2 pending manual; Bolt 3 Layer 1 ✅ / Layer 2 pending manual; Bolt 4 Layer 1 ✅ / Layer 2 pending manual)
 
 ## Milestones Achieved
 - [x] Memory Bank and standards initialized
@@ -24,6 +24,8 @@
 - [x] Bolt 3 nickname-cooldown reconciliation (ADR-011) — Model-stage error corrected (one free post-onboarding change, not two) against `betmeet-clone`'s real `setNickname` server action before Implement began. `PROFILE-1-nickname.md`'s AC corrected to unambiguous event-based phrasing.
 - [x] Bolt 3 Layer 1 — 202 tests passing across 28 suites (73 new tests across 12 new/updated suites: nickname-change-eligibility, validate-nickname-base, validate-avatar-upload, locale, onboarding-wizard-state, locale-store, use-onboarding-wizard, onboarding-wizard-screen, nickname-form, locale-switch, account-settings-screen (updated), auth-guard (updated for the real wizard's route names)). `yarn tsc --noEmit` and `yarn lint` clean (one pre-existing, unrelated lint error in Bolt 2's `supabase-adapter.ts` not touched by this bolt).
 - [ ] Bolt 3 Layer 2 — deferred to manual verification by user. `pod install` not yet run in this environment (Ruby/bundler toolchain blocker, see activeContext.md). Test paths documented in `bolt-3-profile-onboarding/implement-and-test.md`.
+- [x] Bolt 4 Layer 1 — 229 tests passing across 30 suites (27 new tests across 2 new suites: scoring-rules, compute-score). No new npm deps, no rspack/jest config changes. `yarn tsc --noEmit` clean. `yarn lint` — same one pre-existing error in Bolt 2's `supabase-adapter.ts`, not touched by this bolt. Algorithm cross-checked directly against betmeet-clone's verified source — no reconciliation needed (unlike Bolt 3's ADR-011 case).
+- [ ] Bolt 4 Layer 2 — deferred to manual verification by user. No device-surface behavior to verify directly (pure-logic package); Layer 2 integration paths require Bolt 6 (Predictions), Bolt 9 (Rankings), or Bolt 11 (Education) to be implemented first. Test paths documented in `bolt-4-scoring-package/implement-and-test.md`.
 
 ## Bolts (Execution Units)
 
@@ -33,7 +35,7 @@
 | 1 | Auth core (sign-in/up, navigation guard, secure session storage) | Bolt 0 | High | **Done** (Layer 1 ✅, Layer 2 happy-path ✅) |
 | 2 | Auth secondary flows (OAuth, MFA, password reset, change password/email) | Bolt 1 | Medium-High | **Layer 1 ✅ (129 tests)** / Layer 2 pending manual |
 | 3 | Profile & onboarding wizard | Bolt 1 | Medium | **Layer 1 ✅ (202 tests)** / Layer 2 pending manual |
-| 4 | Scoring package *(parallelizable with 1–3)* | Bolt 0 | Low | Not started |
+| 4 | Scoring package *(parallelizable with 1–3)* | Bolt 0 | Low | **Layer 1 ✅ (229 tests)** / Layer 2 pending manual |
 | 5 | Competition read model (fixtures, live updates, team/flag data) | Bolt 1 | Low-Medium | Not started |
 | 6 | Predictions core | Bolt 3, 4, 5 | Medium | Not started |
 | 7 | Pools core | Bolt 3 | Low-Medium | Not started |

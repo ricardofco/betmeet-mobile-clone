@@ -3,6 +3,8 @@
 > **Agent note:** This is your short-term memory. Read it at the start of every session and update it immediately after making an important decision, changing focus, or encountering a blocker.
 
 ## Current Focus
+- **Bolt 4 (Scoring package) is closed at Layer 1** — 229 tests green (up from 202). Layer 2 deferred to manual verification by user (no device-surface behavior in this pure-logic package; Layer 2 test paths require consuming screens from Bolt 6/9/11 — see `memory-bank/bolts/bolt-4-scoring-package/implement-and-test.md`).
+- Bolt 4 delivered: `src/shared/scoring/` — `ScoringRuleSet` constants, `computeScore()` pure function, `derivePenaltyWinner()` helper, barrel `index.ts`. 27 new tests across 2 new suites. No new npm deps, no rspack/jest config changes.
 - **Bolt 3 (Profile & onboarding) is closed at Layer 1** — 202 tests green (up from 129). Layer 2 deferred to manual verification by user; `pod install` not yet run in this environment (Ruby/bundler toolchain blocker — see Known Issues).
 - Bolt 3 delivered: nickname assignment/cooldown (PROFILE-1), avatar 3-source picker + upload (PROFILE-2), locale preference (PROFILE-3), the real 5-step onboarding wizard replacing the Bolt-1 placeholder (PROFILE-4), Settings "Profile" section (PROFILE-5).
 - **Important correction (Bolt 3, ADR-011):** the nickname cooldown rule is **one** free post-onboarding nickname change, then a 30-day cooldown — not two. This was a Model-stage error caused by ambiguous AC wording in `PROFILE-1-nickname.md` (now corrected). Resolved by direct investigation of `betmeet-clone`'s real `setNickname` server action — see `memory-bank/bolts/bolt-3-profile-onboarding/adr-011-nickname-cooldown-reconciliation.md` for the full evidence trail. The regression test for this is `src/domain/profile/__tests__/nickname-change-eligibility.test.ts`.
@@ -32,6 +34,9 @@
   - ADR-014: avatar default-set picker uses a plain grid, not FlashList — bounded/small list, not a list-performance case.
   - `profile.*` capability group added to the `BackendApiClient` seam (`src/platform/backend-api/profile-api.ts`) — no new transport, same `request()` pattern as Bolt 1's `auth.resendConfirmation`.
   - `OnboardingStackParamList`/`screen-registry.ts` replaced the single Bolt-1 placeholder route with 5 real wizard routes, all still tagged `['onboarding']` — `AuthGatedNavigator`'s guard branch logic (ADR-001/ADR-008) untouched.
+- **Bolt 4 ADRs (implemented)**:
+  - ADR-015: `scoring` is NOT added to the MF `shared` config — it is a stateless pure-function module; single-source guarantee is structural (one physical `src/shared/scoring/` directory, same `@` alias in every rspack config). Supersedes ADR-002/005's anticipation of adding it to `shared`. `rspack.config.mjs` and `rspack.config.education-remote.mjs` unchanged.
+  - ADR-016: duplicate-detection gate — `@invariant` JSDoc in source files + this ADR as the architectural record + a three-item code-review checklist applied at Bolt 6/9/11/12 PR review. No new tooling.
 - **Env-var setup (resolved in Bolt 1)**: `react-native-config` reads `.env` at native build time — `pod install` is required after any `.env` change. `SUPABASE_URL` must be the bare project URL (`https://<ref>.supabase.co`), no path suffix. `BACKEND_API_BASE_URL` is still empty (backend hosting TBD).
 - Still open, deferred: concrete performance budget numbers; push-SDK choice (Expo Notifications vs. direct FCM/APNs — needed before Bolt 10); `BACKEND_API_BASE_URL` (needed before any bolt that calls it end-to-end).
 
@@ -48,4 +53,4 @@
 - `BACKEND_API_BASE_URL` still empty — Bolt 3's `profile.*` capabilities are contract-only (Layer 1 mocks them); no real backend exists yet to integration-test against.
 
 ## Immediate Next Step
-- **Bolt 3 is closed at Layer 1.** User will verify Layer 2 manually — run `cd ios && bundle exec pod install` first (see Known Issues above), then rebuild. Suggested manual test paths are in `memory-bank/bolts/bolt-3-profile-onboarding/implement-and-test.md`. Bolt 4 (Scoring package, parallelizable) or Bolt 5 (Competition read model) are next per the bolt plan — confirm with the user which to start.
+- **Bolt 4 is closed at Layer 1.** User will verify Layer 2 manually when Bolt 6/9/11 consuming screens exist — suggested paths in `memory-bank/bolts/bolt-4-scoring-package/implement-and-test.md`. Bolt 5 (Competition read model, depends on Bolt 1) is next per the bolt plan — confirm with the user to start.
