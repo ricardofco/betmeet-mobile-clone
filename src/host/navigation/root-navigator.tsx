@@ -8,6 +8,9 @@ import { AccountSettingsScreen } from '@/host/settings/screens/account-settings-
 import { ChangePasswordScreen } from '@/host/settings/screens/change-password-screen';
 import { ChangeEmailScreen } from '@/host/settings/screens/change-email-screen';
 import { TotpEnrollmentScreen } from '@/host/settings/screens/totp-enrollment-screen';
+import { ChangeNicknameScreen } from '@/host/profile/screens/change-nickname-screen';
+import { ChangeAvatarScreen } from '@/host/profile/screens/change-avatar-screen';
+import { ChangeLocaleScreen } from '@/host/profile/screens/change-locale-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { parseDeepLink } from '@/domain/auth/parse-deep-link';
 import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -41,6 +44,21 @@ function SettingsStackNavigator() {
         name="AccountSettings"
         component={AccountSettingsScreen}
         options={{ title: 'Account settings' }}
+      />
+      <SettingsStack.Screen
+        name="ChangeNickname"
+        component={ChangeNicknameScreen}
+        options={{ title: 'Nickname' }}
+      />
+      <SettingsStack.Screen
+        name="ChangeAvatar"
+        component={ChangeAvatarScreen}
+        options={{ title: 'Avatar' }}
+      />
+      <SettingsStack.Screen
+        name="ChangeLocale"
+        component={ChangeLocaleScreen}
+        options={{ title: 'Language' }}
       />
       <SettingsStack.Screen
         name="ChangePassword"

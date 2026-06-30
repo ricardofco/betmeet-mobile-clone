@@ -7,6 +7,11 @@ module.exports = {
   preset: '@react-native/jest-preset',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Bolt 3 (ADR-013): redirects every import of the real package to its
+    // own ships-with-the-package Jest mock (an in-memory store) — this
+    // package's mock is a `moduleNameMapper` substitution target, not a
+    // `setupFiles` side-effecting shim like react-native-gesture-handler's.
+    '^@react-native-async-storage/async-storage$': '@react-native-async-storage/async-storage/jest',
   },
   // Augments (not replaces) the preset's own setupFiles — required so
   // react-native-gesture-handler's native module is mocked under Jest
@@ -22,7 +27,14 @@ module.exports = {
   // Bolt 2: react-native-svg and react-native-qrcode-svg added (ADR-007).
   // react-native-qrcode-svg is mocked via __mocks__ to avoid native SVG
   // rendering in Jest; react-native-svg is listed here for completeness.
+  // Bolt 3: react-native-image-picker added (design.md §7), mocked via
+  // __mocks__ (same pattern as react-native-qrcode-svg, ADR-007) — native
+  // camera/library UI isn't available under Jest.
+  // @react-native-async-storage/async-storage added (ADR-013) — its own
+  // Jest mock (wired above) makes adding it to this allowlist unnecessary
+  // for the mocked import path, but it's listed for completeness in case
+  // any transitive import bypasses the mock.
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg)',
+    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg|react-native-image-picker|@react-native-async-storage)',
   ],
 };

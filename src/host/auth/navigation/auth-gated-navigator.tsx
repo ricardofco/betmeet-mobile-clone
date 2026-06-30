@@ -15,8 +15,13 @@ import { SignUpScreen } from '@/host/auth/screens/sign-up-screen';
 import { ForgotPasswordScreen } from '@/host/auth/screens/forgot-password-screen';
 import { SetNewPasswordScreen } from '@/host/auth/screens/set-new-password-screen';
 import { VerifyEmailScreen } from '@/host/auth/screens/verify-email-screen';
-import { OnboardingScreen } from '@/host/auth/screens/onboarding-screen';
 import { MfaChallengeScreen } from '@/host/auth/screens/mfa-challenge-screen';
+import { OnboardingWizardProvider } from '@/host/profile/screens/onboarding-wizard-screen';
+import { OnboardingNicknameScreen } from '@/host/profile/screens/onboarding-nickname-screen';
+import { OnboardingAvatarScreen } from '@/host/profile/screens/onboarding-avatar-screen';
+import { OnboardingRulesScreen } from '@/host/profile/screens/onboarding-rules-screen';
+import { OnboardingNotificationsScreen } from '@/host/profile/screens/onboarding-notifications-screen';
+import { OnboardingSecondFactorScreen } from '@/host/profile/screens/onboarding-second-factor-screen';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const MfaStack = createNativeStackNavigator<MfaStackParamList>();
@@ -166,11 +171,43 @@ function MfaChallengeTree() {
   );
 }
 
+/**
+ * Bolt 3 (design.md §5.1): replaces the Bolt-1 single-screen placeholder
+ * with the real 5-step wizard, wrapped in `OnboardingWizardProvider` so
+ * every step screen shares one `OnboardingWizardState` instance for the
+ * duration of the wizard session (never persisted — model.md §2.7).
+ */
 function OnboardingTree() {
   return (
-    <OnboardingStack.Navigator>
-      <OnboardingStack.Screen name="Onboarding" component={OnboardingScreen} options={{ title: 'Onboarding' }} />
-    </OnboardingStack.Navigator>
+    <OnboardingWizardProvider>
+      <OnboardingStack.Navigator>
+        <OnboardingStack.Screen
+          name="OnboardingNickname"
+          component={OnboardingNicknameScreen}
+          options={{ title: 'Nickname' }}
+        />
+        <OnboardingStack.Screen
+          name="OnboardingAvatar"
+          component={OnboardingAvatarScreen}
+          options={{ title: 'Avatar' }}
+        />
+        <OnboardingStack.Screen
+          name="OnboardingRules"
+          component={OnboardingRulesScreen}
+          options={{ title: 'Rules' }}
+        />
+        <OnboardingStack.Screen
+          name="OnboardingNotifications"
+          component={OnboardingNotificationsScreen}
+          options={{ title: 'Notifications' }}
+        />
+        <OnboardingStack.Screen
+          name="OnboardingSecondFactor"
+          component={OnboardingSecondFactorScreen}
+          options={{ title: 'Security' }}
+        />
+      </OnboardingStack.Navigator>
+    </OnboardingWizardProvider>
   );
 }
 

@@ -13,7 +13,7 @@ As a user, I want a unique nickname (`base#discriminator`) that I can occasional
 ## Acceptance criteria
 
 - During onboarding, the user can type a base name and see live availability feedback; on submit, a discriminator is assigned automatically (the user does not pick their own number).
-- After onboarding, changing the nickname is allowed once freely; a second post-onboarding change is allowed; a third attempt within 30 days of the second is rejected with a clear "try again in N days" message; after 30 days it's allowed again.
+- The initial nickname assignment during onboarding is never blocked by cooldown. The first nickname change after onboarding is complete (the one free post-onboarding "grace" change) is also never blocked by cooldown. Any further change attempt is rejected with a clear "try again in N days" message if it falls within 30 days of the last permitted change (the grace change or a prior cooldown-gated change); after 30 days it's allowed again.
 - Nickname uniqueness (`base#discriminator` combination) is enforced server-side regardless of what the client believes is available.
 - Input outside the allowed character set or length is rejected client-side before any network call, with a precise validation message.
 

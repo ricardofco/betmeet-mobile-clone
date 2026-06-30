@@ -11,6 +11,14 @@ import type { ScreenClass } from '@/domain/auth/screen-class';
  *   - `SetNewPassword` replaces `ResetPassword` (model terminology alignment).
  *   - `MfaChallenge` gets the new `mfa-challenge` tag.
  *   - Settings-area screens get `protected` tag.
+ *
+ * Bolt 3 additions (design.md §5):
+ *   - `Onboarding` (single placeholder route) is replaced by the 5 real
+ *     wizard screens, all sharing the same `['onboarding']` tag — the guard
+ *     only ever checks "is *some* onboarding screen showing," never which
+ *     step, so no new tag is needed (design.md §5.1).
+ *   - `ChangeNickname`/`ChangeAvatar`/`ChangeLocale` (PROFILE-5, Settings)
+ *     get the `protected` tag, same as the existing Settings rows.
  */
 export const SCREEN_REGISTRY = {
   // ── Unauthenticated / auth-only ──
@@ -23,14 +31,21 @@ export const SCREEN_REGISTRY = {
   // ── MFA challenge (Bolt 2) ──
   MfaChallenge: ['mfa-challenge'] as ScreenClass,
 
-  // ── Onboarding ──
-  Onboarding: ['onboarding'] as ScreenClass,
+  // ── Onboarding wizard (Bolt 3) ──
+  OnboardingNickname: ['onboarding'] as ScreenClass,
+  OnboardingAvatar: ['onboarding'] as ScreenClass,
+  OnboardingRules: ['onboarding'] as ScreenClass,
+  OnboardingNotifications: ['onboarding'] as ScreenClass,
+  OnboardingSecondFactor: ['onboarding'] as ScreenClass,
 
   // ── Protected app screens ──
   Home: ['protected'] as ScreenClass,
 
-  // ── Settings area (Bolt 2) ──
+  // ── Settings area (Bolt 2 + Bolt 3) ──
   AccountSettings: ['protected'] as ScreenClass,
+  ChangeNickname: ['protected'] as ScreenClass,
+  ChangeAvatar: ['protected'] as ScreenClass,
+  ChangeLocale: ['protected'] as ScreenClass,
   ChangePassword: ['protected'] as ScreenClass,
   ChangeEmail: ['protected'] as ScreenClass,
   TotpEnrollment: ['protected'] as ScreenClass,

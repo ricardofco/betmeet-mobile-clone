@@ -8,6 +8,13 @@ import type { VerifyEmailScreenParams } from '@/host/auth/screens/verify-email-s
  *
  * Bolt 2: `SetNewPassword` replaces `ResetPassword` (model terminology);
  * `MfaStackParamList` and `SettingsStackParamList` are new.
+ *
+ * Bolt 3 (design.md §5): `OnboardingStackParamList` is re-exported from
+ * `@/host/profile/navigation/onboarding-stack-params` (the real 5-screen
+ * wizard, replacing the single-screen placeholder) — kept as a re-export
+ * here so `auth-gated-navigator.tsx` doesn't need to import from two
+ * different param-list modules. `SettingsStackParamList` gains the three new
+ * Profile rows (`ChangeNickname`/`ChangeAvatar`/`ChangeLocale`, PROFILE-5).
  */
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -28,11 +35,12 @@ export type AppStackParamList = {
 
 export type SettingsStackParamList = {
   AccountSettings: undefined;
+  ChangeNickname: undefined;
+  ChangeAvatar: undefined;
+  ChangeLocale: undefined;
   ChangePassword: undefined;
   ChangeEmail: undefined;
   TotpEnrollment: undefined;
 };
 
-export type OnboardingStackParamList = {
-  Onboarding: undefined;
-};
+export type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';

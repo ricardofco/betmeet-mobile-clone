@@ -165,7 +165,7 @@ describe('evaluateGuard — AUTH-7 decision table (model.md §1, verbatim rule o
   // Row 5: authenticated+confirmed, onboardingCompleted explicitly false -> onboarding, except onboarding screen itself.
   it('row 5: authenticated+confirmed + onboardingCompleted=false + onboarding screen -> proceed', () => {
     const claims = authenticatedClaims({ emailVerified: true, onboardingCompleted: false });
-    const screenClass = screenClassFor('Onboarding');
+    const screenClass = screenClassFor('OnboardingNickname');
     const outcome = evaluateGuard(claims, screenClass, destinationFor(screenClass));
     expect(outcome).toEqual<GuardOutcome>({ type: 'proceed' });
   });
@@ -226,7 +226,7 @@ describe('evaluateGuard — AUTH-7 decision table (model.md §1, verbatim rule o
 
   it('row 11: confirmed+onboarded user can still reach the onboarding screen class directly -> proceed', () => {
     const claims = authenticatedClaims({ emailVerified: true, onboardingCompleted: true });
-    const screenClass = screenClassFor('Onboarding');
+    const screenClass = screenClassFor('OnboardingNickname');
     const outcome = evaluateGuard(claims, screenClass, destinationFor(screenClass));
     expect(outcome).toEqual<GuardOutcome>({ type: 'proceed' });
   });
