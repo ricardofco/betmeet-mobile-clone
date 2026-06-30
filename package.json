@@ -22,8 +22,10 @@
     "react-native-config": "^1.6.1",
     "react-native-gesture-handler": "^3.0.2",
     "react-native-keychain": "^10.0.0",
+    "react-native-qrcode-svg": "^6.3.21",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.25.2",
+    "react-native-svg": "^15.15.5",
     "react-native-url-polyfill": "^3.0.0",
     "zustand": "^5.0.14"
   },

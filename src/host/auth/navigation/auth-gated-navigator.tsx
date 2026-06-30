@@ -5,15 +5,21 @@ import { evaluateGuard, type Destination } from '@/domain/auth/auth-guard';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { useAuthSessionStore } from '@/host/auth/auth-session-store';
 import { screenClassFor } from '@/host/auth/navigation/screen-registry';
-import type { AuthStackParamList, OnboardingStackParamList } from '@/host/auth/navigation/auth-stack-params';
+import type {
+  AuthStackParamList,
+  MfaStackParamList,
+  OnboardingStackParamList,
+} from '@/host/auth/navigation/auth-stack-params';
 import { SignInScreen } from '@/host/auth/screens/sign-in-screen';
 import { SignUpScreen } from '@/host/auth/screens/sign-up-screen';
 import { ForgotPasswordScreen } from '@/host/auth/screens/forgot-password-screen';
-import { ResetPasswordScreen } from '@/host/auth/screens/reset-password-screen';
+import { SetNewPasswordScreen } from '@/host/auth/screens/set-new-password-screen';
 import { VerifyEmailScreen } from '@/host/auth/screens/verify-email-screen';
 import { OnboardingScreen } from '@/host/auth/screens/onboarding-screen';
+import { MfaChallengeScreen } from '@/host/auth/screens/mfa-challenge-screen';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const MfaStack = createNativeStackNavigator<MfaStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 type AuthGatedNavigatorProps = {
@@ -27,9 +33,8 @@ type AuthGatedNavigatorProps = {
  * per render: an unreachable screen is never registered into the tree to
  * begin with, so there is no "wrong screen" to flash-then-correct.
  *
- * On cold launch (`status === 'loading'`, no `onSessionChange` emission
- * received yet), renders a splash view — not a `ScreenClass`-routed
- * decision, just "we don't know yet" (model.md §3).
+ * Bolt 2 extension (ADR-008): new `mfa-challenge` branch, inserted between
+ * the verify-email redirect and the onboarding/home check.
  */
 export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
   const status = useAuthSessionStore(state => state.status);
@@ -39,9 +44,14 @@ export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
   const hasEjectedRef = useRef(false);
 
   useEffect(() => {
-    const unsubscribe = getSupabaseAdapter().onSessionChange(setSession);
+    const unsubscribe = getSupabaseAdapter().onSessionChange( (x)=> {
+      console.log('xxxxxonSessionChange', x)
+      setSession(x)
+    });
     return unsubscribe;
   }, [setSession]);
+
+  console.log("status", status)
 
   if (status === 'loading') {
     return (
@@ -51,25 +61,18 @@ export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
     );
   }
 
-  // The entry screen on cold launch / whenever no specific destination was
-  // requested defaults to Home — every later unit can extend this once more
-  // protected routes exist.
   const intendedDestination: Destination = { screenClass: screenClassFor('Home'), route: 'Home' };
   const outcome = evaluateGuard(claims, intendedDestination.screenClass, intendedDestination);
 
   switch (outcome.type) {
     case 'eject': {
-      // One-shot side effect: fire sign-out, then fall through to the
-      // unauthenticated tree on the next render once the session clears.
       if (!hasEjectedRef.current) {
         hasEjectedRef.current = true;
         getSupabaseAdapter()
           .signOut()
           .catch(() => {
-            // Best-effort: even if sign-out's network call fails, the
-            // keychain-backed session storage is cleared client-side by the
-            // SDK regardless (AUTH-8) — the ejected user falls through to
-            // UnauthenticatedTree on the next render either way.
+            // Best-effort: the keychain-backed session storage is cleared
+            // client-side by the SDK regardless.
           });
       }
       return (
@@ -87,6 +90,9 @@ export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
       }
       if (outcome.to === 'verify-email') {
         return <VerifyEmailTree />;
+      }
+      if (outcome.to === 'mfa-challenge') {
+        return <MfaChallengeTree />;
       }
       if (outcome.to === 'onboarding') {
         setPendingDestination(outcome.rememberDestination);
@@ -113,7 +119,11 @@ function UnauthenticatedTree() {
         component={ForgotPasswordScreen}
         options={{ title: 'Forgot password' }}
       />
-      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'Reset password' }} />
+      <AuthStack.Screen
+        name="SetNewPassword"
+        component={SetNewPasswordScreen}
+        options={{ title: 'Set new password' }}
+      />
       <AuthStack.Screen
         name="VerifyEmail"
         component={VerifyEmailScreenRoute}
@@ -134,8 +144,25 @@ function VerifyEmailTree() {
         component={ForgotPasswordScreen}
         options={{ title: 'Forgot password' }}
       />
-      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'Reset password' }} />
+      <AuthStack.Screen
+        name="SetNewPassword"
+        component={SetNewPasswordScreen}
+        options={{ title: 'Set new password' }}
+      />
     </AuthStack.Navigator>
+  );
+}
+
+/**
+ * MFA challenge tree (ADR-008). Single-screen navigator; no back button.
+ * The user exits by: successful MFA verification (guard re-renders to app
+ * tree) or signing out (guard re-renders to unauthenticated tree).
+ */
+function MfaChallengeTree() {
+  return (
+    <MfaStack.Navigator screenOptions={{ headerShown: false }}>
+      <MfaStack.Screen name="MfaChallenge" component={MfaChallengeScreen} />
+    </MfaStack.Navigator>
   );
 }
 

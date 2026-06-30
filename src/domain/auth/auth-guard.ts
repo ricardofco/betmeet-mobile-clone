@@ -9,6 +9,12 @@ import { hasScreenClass, type ScreenClass } from '@/domain/auth/screen-class';
  * AUTH-7's six rules **verbatim and in the exact order given**, first match
  * wins. See model.md §1 for the full rule text and the decision table this
  * implementation is verified against (Test stage).
+ *
+ * Bolt 2 extension (ADR-008): new rule 3.5 — pending-MFA redirect inserted
+ * between the unconfirmed-email check (rule 3) and the auth-only redirect
+ * (rule 4). The Bolt 1 `isPendingMfa` helper in rule 4 is removed now that
+ * the guard handles the pending-MFA case with an explicit branch before
+ * rule 4 is reached.
  */
 
 export type Destination = {
@@ -21,18 +27,10 @@ export type GuardOutcome =
   | { type: 'eject' }
   | { type: 'redirect'; to: 'sign-in'; rememberDestination: Destination }
   | { type: 'redirect'; to: 'verify-email' }
+  | { type: 'redirect'; to: 'mfa-challenge' }
   | { type: 'redirect'; to: 'home' }
   | { type: 'redirect'; to: 'onboarding'; rememberDestination: Destination }
   | { type: 'proceed' };
-
-/**
- * `claims.aal` recognizes the pending-MFA state distinctly (current `aal1`,
- * next `aal2`) so rule 4's exception can let it through — even though MFA
- * itself (AUTH-3) is out of this bolt's scope, the guard must not bounce it.
- */
-function isPendingMfa(claims: AuthClaims): boolean {
-  return claims.aal !== null && claims.aal.current === 'aal1' && claims.aal.next === 'aal2';
-}
 
 export function evaluateGuard(
   claims: AuthClaims,
@@ -66,13 +64,21 @@ export function evaluateGuard(
     return { type: 'redirect', to: 'verify-email' };
   }
 
-  // Rule 4: an authenticated+confirmed user on an auth-only screen is
-  // redirected to home — unless they have a pending MFA challenge, in which
-  // case they're let through to complete it.
-  if (hasScreenClass(currentScreenClass, 'auth-only')) {
-    if (isPendingMfa(claims)) {
+  // Rule 3.5 (Bolt 2, ADR-008): an authenticated+confirmed user with a
+  // pending MFA challenge (aal1 session, aal2 required) must complete MFA
+  // before accessing the app. Only `mfa-challenge`-classed screens are
+  // reachable in this state.
+  if (claims.aal?.current === 'aal1' && claims.aal?.next === 'aal2') {
+    if (hasScreenClass(currentScreenClass, 'mfa-challenge')) {
       return { type: 'proceed' };
     }
+    return { type: 'redirect', to: 'mfa-challenge' };
+  }
+
+  // Rule 4: an authenticated+confirmed user on an auth-only screen is
+  // redirected to home (the pending-MFA exception from Bolt 1 is now
+  // handled by rule 3.5 above — this rule is clean again).
+  if (hasScreenClass(currentScreenClass, 'auth-only')) {
     return { type: 'redirect', to: 'home' };
   }
 

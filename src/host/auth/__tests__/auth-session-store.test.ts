@@ -1,4 +1,5 @@
 import { UNAUTHENTICATED_CLAIMS, type AuthSession } from '@/domain/auth/auth-claims';
+import type { ScreenClass } from '@/domain/auth/screen-class';
 import { useAuthSessionStore } from '@/host/auth/auth-session-store';
 
 /**
@@ -14,6 +15,7 @@ describe('useAuthSessionStore', () => {
       status: 'loading',
       claims: UNAUTHENTICATED_CLAIMS,
       pendingDestination: null,
+      mfaFactorId: null,
     });
   });
 
@@ -61,7 +63,7 @@ describe('useAuthSessionStore', () => {
   });
 
   it('setPendingDestination records and clears the intended-destination memory', () => {
-    const destination = { screenClass: ['protected'] as const, route: 'Pools' };
+    const destination = { screenClass: ['protected'] as ScreenClass, route: 'Pools' };
 
     useAuthSessionStore.getState().setPendingDestination(destination);
     expect(useAuthSessionStore.getState().pendingDestination).toEqual(destination);

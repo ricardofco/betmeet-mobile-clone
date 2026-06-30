@@ -9,7 +9,7 @@
  * rule 4). `model.md` is left as originally written; this file is the as-built
  * shape.
  */
-export type ScreenClassTag = 'public' | 'auth-only' | 'verify-email' | 'onboarding' | 'protected';
+export type ScreenClassTag = 'public' | 'auth-only' | 'verify-email' | 'onboarding' | 'protected' | 'mfa-challenge';
 
 export type ScreenClass = ScreenClassTag[];
 

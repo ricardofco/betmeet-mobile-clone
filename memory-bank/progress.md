@@ -3,8 +3,8 @@
 > **Agent note:** This is your long-term progress tracker. Update it whenever you complete a Bolt, close a phase, or reach a major milestone.
 
 ## Overall Status
-- **Current Phase:** Construction — **Bolt 1 (Auth core) closed.** Bolt 2 (Auth secondary flows) is next, to be started in a separate session.
-- **Bolts Completed:** 2 / 13 (Bolt 0 + Bolt 1 — both Layer 1 ✅ and Layer 2 happy-path ✅ verified on a real iOS Simulator)
+- **Current Phase:** Construction — **Bolt 2 (Auth secondary flows) closed at Layer 1.** Layer 2 deferred to manual verification. Bolt 3 (Profile & onboarding) is next.
+- **Bolts Completed:** 2.5 / 13 (Bolt 0 ✅, Bolt 1 ✅ both layers; Bolt 2 Layer 1 ✅ / Layer 2 pending manual)
 
 ## Milestones Achieved
 - [x] Memory Bank and standards initialized
@@ -19,6 +19,8 @@
 - [x] Bolt 0 Layer 2 (device-level) verification — happy path confirmed on a real iOS Simulator (host launches, `education` remote loads on demand). Fallback-path proof (remote dev server killed mid-session) and an Android run are still open, non-blocking — see `implement-and-test.md`.
 - [x] Bolt 1 Layer 1 — 59 tests passing (7 new suites: auth-guard decision table, auth-session-store, auth-claims, backend-api-client, sign-in/sign-up/verify-email/unconfirmed-email-panel screens).
 - [x] Bolt 1 Layer 2 (device-level) — sign-up → verify-email → sign-in flow confirmed working on iOS Simulator. Fix applied: `.env` had malformed `SUPABASE_URL` (extra smart-quote prefix + `/rest/v1/` suffix); corrected to bare project URL. `pod install` required after `.env` changes (react-native-config bakes vars at native build time).
+- [x] Bolt 2 Layer 1 — 129 tests passing across 18 suites (70 new tests across 9 new suites: parse-deep-link, validate-totp-code, forgot-password-screen, set-new-password-screen, mfa-challenge-screen, totp-enrollment-screen, account-settings-screen, change-password-screen, change-email-screen).
+- [ ] Bolt 2 Layer 2 — deferred to manual verification by user. Rebuild required for `betmeet://` URL scheme (Info.plist updated). Test paths documented in `bolt-2-auth-secondary-flows/implement-and-test.md`.
 
 ## Bolts (Execution Units)
 
@@ -26,7 +28,7 @@
 |---|---|---|---|---|
 | 0 | Platform scaffolding (Module Federation, Supabase adapter, Backend-API client skeleton) | — | Medium | **Done** (Layer 1 ✅, Layer 2 happy-path ✅) |
 | 1 | Auth core (sign-in/up, navigation guard, secure session storage) | Bolt 0 | High | **Done** (Layer 1 ✅, Layer 2 happy-path ✅) |
-| 2 | Auth secondary flows (OAuth, MFA, password reset, change password/email) | Bolt 1 | Medium-High | Not started |
+| 2 | Auth secondary flows (OAuth, MFA, password reset, change password/email) | Bolt 1 | Medium-High | **Layer 1 ✅ (129 tests)** / Layer 2 pending manual |
 | 3 | Profile & onboarding wizard | Bolt 1 | Medium | Not started |
 | 4 | Scoring package *(parallelizable with 1–3)* | Bolt 0 | Low | Not started |
 | 5 | Competition read model (fixtures, live updates, team/flag data) | Bolt 1 | Low-Medium | Not started |

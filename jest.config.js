@@ -19,7 +19,10 @@ module.exports = {
   // and @react-native(-community) packages. Bolt 0 adds several RN-ecosystem
   // packages that ship untranspiled ESM in node_modules (ADR-002/ADR-003) —
   // extend the allowlist or their imports fail to parse under Jest.
+  // Bolt 2: react-native-svg and react-native-qrcode-svg added (ADR-007).
+  // react-native-qrcode-svg is mocked via __mocks__ to avoid native SVG
+  // rendering in Jest; react-native-svg is listed here for completeness.
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain)',
+    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg)',
   ],
 };

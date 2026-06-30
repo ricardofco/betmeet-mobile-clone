@@ -56,5 +56,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>betmeet</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.betmeet.mobile</string>
+		</dict>
+	</array>
 </dict>
 </plist>

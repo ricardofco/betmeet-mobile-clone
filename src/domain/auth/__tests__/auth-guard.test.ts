@@ -6,10 +6,12 @@ import { screenClassFor } from '@/host/auth/navigation/screen-registry';
 /**
  * AUTH-7's AC: "a table of claim combinations ... is written out and
  * verified against, not just spot-checked." This file is that table,
- * encoded as parametrized cases, reproducing model.md §1's 11-row decision
- * table exactly (including the fail-open ∅/explicit-false collapsing
- * `model.md` itself calls out), updated for ADR-004's tag-array `ScreenClass`
- * refinement (membership checks, not equality).
+ * encoded as parametrized cases, reproducing model.md §1's decision table
+ * exactly (including the fail-open ∅/explicit-false collapsing
+ * `model.md` itself calls out), updated for:
+ *   - ADR-004: tag-array `ScreenClass` refinement (membership checks, not equality)
+ *   - ADR-008 (Bolt 2): rule 3.5 — pending-MFA redirect inserted between
+ *     rules 3 and 4; `isPendingMfa` exception removed from rule 4.
  */
 
 const homeDestination: Destination = { screenClass: screenClassFor('Home'), route: 'Home' };
@@ -107,21 +109,49 @@ describe('evaluateGuard — AUTH-7 decision table (model.md §1, verbatim rule o
     expect(outcome).toEqual<GuardOutcome>({ type: 'proceed' });
   });
 
-  // Row 4: authenticated+confirmed on an auth-only screen -> home, unless pending MFA.
-  it('row 4: authenticated+confirmed + auth-only screen + no pending MFA -> redirect home', () => {
-    const claims = authenticatedClaims({ emailVerified: true });
-    const outcome = evaluateGuard(claims, ['auth-only'], destinationFor(['auth-only']));
-    expect(outcome).toEqual<GuardOutcome>({ type: 'redirect', to: 'home' });
-  });
-
-  it('row 4: authenticated+confirmed + auth-only screen + pending MFA (aal1/aal2) -> proceed (exception)', () => {
+  // Row 3.5 (Bolt 2, ADR-008): pending MFA — authenticated+confirmed, aal1 with aal2 required.
+  // Inserted before rule 4; only 'mfa-challenge'-tagged screens are reachable.
+  it('row 3.5: authenticated+confirmed + pending MFA (aal1/aal2) + mfa-challenge screen -> proceed', () => {
     const claims = authenticatedClaims({ emailVerified: true, aal: PENDING_MFA });
-    const outcome = evaluateGuard(claims, ['auth-only'], destinationFor(['auth-only']));
+    const screenClass = screenClassFor('MfaChallenge');
+    const outcome = evaluateGuard(claims, screenClass, destinationFor(screenClass));
     expect(outcome).toEqual<GuardOutcome>({ type: 'proceed' });
   });
 
-  it('row 4: an aal current=aal2/next=aal2 session (not pending) on auth-only still redirects home', () => {
+  it.each<[string, ScreenClass]>([
+    ['auth-only', ['auth-only']],
+    ['protected', ['protected']],
+    ['onboarding', ['onboarding']],
+    ['public (not mfa-challenge)', ['public']],
+  ])(
+    'row 3.5: authenticated+confirmed + pending MFA + %s -> redirect mfa-challenge',
+    (_label, screenClass) => {
+      const claims = authenticatedClaims({ emailVerified: true, aal: PENDING_MFA });
+      const outcome = evaluateGuard(claims, screenClass, destinationFor(screenClass));
+      expect(outcome).toEqual<GuardOutcome>({ type: 'redirect', to: 'mfa-challenge' });
+    },
+  );
+
+  it('row 3.5: emailVerified=null (absent, fail-open) + pending MFA -> redirect mfa-challenge', () => {
+    // fail-open: emailVerified=null is NOT explicitly false, so rule 3 does
+    // not fire. Rule 3.5 fires next.
+    const claims = authenticatedClaims({ emailVerified: null, aal: PENDING_MFA });
+    const outcome = evaluateGuard(claims, ['auth-only'], destinationFor(['auth-only']));
+    expect(outcome).toEqual<GuardOutcome>({ type: 'redirect', to: 'mfa-challenge' });
+  });
+
+  it('row 3.5: aal current=aal2/next=aal2 (not pending) does NOT trigger mfa-challenge redirect', () => {
     const claims = authenticatedClaims({ emailVerified: true, aal: NOT_PENDING_MFA });
+    const outcome = evaluateGuard(claims, ['auth-only'], destinationFor(['auth-only']));
+    // Not pending MFA -> rule 3.5 skipped -> rule 4 fires -> redirect home
+    expect(outcome).toEqual<GuardOutcome>({ type: 'redirect', to: 'home' });
+  });
+
+  // Row 4: authenticated+confirmed on an auth-only screen -> home.
+  // (The Bolt 1 pending-MFA exception in rule 4 is removed — ADR-008.
+  //  Pending-MFA is now handled by rule 3.5 before rule 4 is reached.)
+  it('row 4: authenticated+confirmed + auth-only screen + no pending MFA -> redirect home', () => {
+    const claims = authenticatedClaims({ emailVerified: true });
     const outcome = evaluateGuard(claims, ['auth-only'], destinationFor(['auth-only']));
     expect(outcome).toEqual<GuardOutcome>({ type: 'redirect', to: 'home' });
   });
@@ -183,13 +213,12 @@ describe('evaluateGuard — AUTH-7 decision table (model.md §1, verbatim rule o
   // Row 10/11 equivalents: an already-onboarded, confirmed user can still reach
   // a public-but-not-auth-only screen, and can reach the onboarding screen
   // class directly — nothing in rules 1-5 redirects them away from either.
-  it('row 10: confirmed+onboarded user revisiting a public-but-not-auth-only screen -> proceed (e.g. stray forgot-password deep link)', () => {
+  it('row 10: confirmed+onboarded user on ForgotPassword (public+auth-only) -> redirect home via rule 4', () => {
     const claims = authenticatedClaims({ emailVerified: true, onboardingCompleted: true });
-    const screenClass = screenClassFor('ForgotPassword'); // public + auth-only in this registry
-    // ForgotPassword is tagged auth-only too, so this actually exercises rule 4 -> home.
-    // Use a hypothetical public-only screen class to exercise the "proceed" row distinctly.
-    const publicOnly: ScreenClass = ['public'];
+    const screenClass = screenClassFor('ForgotPassword'); // public + auth-only
     const outcomeRegistryScreen = evaluateGuard(claims, screenClass, destinationFor(screenClass));
+    // public-only (hypothetical) -> proceed
+    const publicOnly: ScreenClass = ['public'];
     const outcomePublicOnly = evaluateGuard(claims, publicOnly, destinationFor(publicOnly));
     expect(outcomeRegistryScreen).toEqual<GuardOutcome>({ type: 'redirect', to: 'home' });
     expect(outcomePublicOnly).toEqual<GuardOutcome>({ type: 'proceed' });
