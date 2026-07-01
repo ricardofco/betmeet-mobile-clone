@@ -34,7 +34,10 @@ module.exports = {
   // Jest mock (wired above) makes adding it to this allowlist unnecessary
   // for the mocked import path, but it's listed for completeness in case
   // any transitive import bypasses the mock.
+  // Bolt 5: @shopify/flash-list added (ADR-022) — its `dist/index.js` ships
+  // untranspiled ESM `import` syntax despite no `"type": "module"` in its
+  // package.json, same class of gap as the packages above.
   transformIgnorePatterns: [
-    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg|react-native-image-picker|@react-native-async-storage)',
+    'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg|react-native-image-picker|@react-native-async-storage|@shopify/flash-list)',
   ],
 };

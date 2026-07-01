@@ -72,6 +72,20 @@ export type ChangeEmailResult =
   | { type: 'invalid-email'; reason: string }
   | { type: 'error' };
 
+// ── Bolt 5 domain types used only by this adapter ──────────────────────────
+
+/**
+ * The result of attempting to subscribe to the live-results signal channel
+ * (COMPETITION-2, ADR-021). `{ failed: true }` covers any condition that
+ * leaves the channel unestablished (explicit error, timeout, or the channel
+ * closing) — callers (`use-live-competition-subscription.ts`) treat this the
+ * same as "start the polling fallback," never distinguishing the failure
+ * reason further (ADR-021: the fallback is unconditional, not error-only).
+ */
+export type LiveResultsSubscription =
+  | { unsubscribe: () => void }
+  | { failed: true };
+
 // ── Passkey seam (ADR-009) — interface only, no implementation ──────────────
 
 /**
@@ -117,6 +131,18 @@ export interface SupabaseAdapter {
   // ── Bolt 2: Authenticated user settings ──
   changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResult>;
   changeEmail(newEmail: string): Promise<ChangeEmailResult>;
+
+  // ── Bolt 5: Competition live-results signal (COMPETITION-2, ADR-021) ──
+  /**
+   * Subscribes to the signal-only "something changed, refetch" Realtime
+   * Broadcast channel (domain-overview.md §6). `onSignal` carries no
+   * payload — callers refetch their own data on receipt. Returns
+   * `{ failed: true }` synchronously-soon (via the SDK's subscribe status
+   * callback) if the channel does not reach `SUBSCRIBED` — the caller is
+   * expected to fall back to polling in that case (ADR-021: not optional,
+   * not error-only-triggered).
+   */
+  subscribeToLiveResults(onSignal: () => void): Promise<LiveResultsSubscription>;
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────
@@ -431,6 +457,35 @@ class SupabaseAdapterImpl implements SupabaseAdapter {
       return { type: 'error' };
     }
     return { type: 'confirmation-sent' };
+  }
+
+  // ── Bolt 5: Competition live-results signal (COMPETITION-2, ADR-021) ──────
+
+  async subscribeToLiveResults(onSignal: () => void): Promise<LiveResultsSubscription> {
+    return new Promise(resolve => {
+      let settled = false;
+
+      const channel = this.client
+        .channel('live-results')
+        .on('broadcast', { event: 'results-updated' }, () => {
+          onSignal();
+        })
+        .subscribe(status => {
+          if (settled) return;
+          if (status === 'SUBSCRIBED') {
+            settled = true;
+            resolve({ unsubscribe: () => channel.unsubscribe() });
+            return;
+          }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            settled = true;
+            // Best-effort cleanup of the half-open channel; the caller falls
+            // back to polling regardless of why this failed (ADR-021).
+            channel.unsubscribe();
+            resolve({ failed: true });
+          }
+        });
+    });
   }
 }
 
