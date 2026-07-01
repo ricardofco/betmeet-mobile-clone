@@ -1,0 +1,295 @@
+// Phase 1 schema (ADR-028, memory-bank/bolts/bolt-backend-phase1/). Independently
+// authored for this repo's own Supabase project — not copied from betmeet-clone,
+// though it models the same domain (domain-overview.md §5) and reuses the same
+// snake_case column convention for consistency with that project's SQL style.
+//
+// Tables intentionally NOT in Phase 1 (see ADR-028): ProviderSyncRun, PredictionScore
+// (mobile computes score breakdown client-side, Bolt 4/6), PushSubscription,
+// NotificationEvent, NotificationDelivery (Phase 4).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  ADMIN
+}
+
+enum AvatarSource {
+  GOOGLE_PHOTO
+  DEFAULT_SET
+  CUSTOM_UPLOAD
+}
+
+// User public identity — extends Supabase auth.users (shared UUID primary key,
+// no FK since auth is a separate Supabase-managed schema).
+model Profile {
+  id                    String             @id @db.Uuid
+  nicknameBase          String?            @map("nickname_base") @db.VarChar(20)
+  nicknameDiscriminator String?            @map("nickname_discriminator") @db.Char(4)
+  avatarUrl             String             @map("avatar_url")
+  avatarSource          AvatarSource       @default(DEFAULT_SET) @map("avatar_source")
+  verificationStatus    VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  onboardingCompleted   Boolean            @default(false) @map("onboarding_completed")
+  locale                String             @default("es") @db.VarChar(2)
+  nicknameUpdatedAt     DateTime?          @map("nickname_updated_at")
+  nicknameChangeCount   Int                @default(0) @map("nickname_change_count")
+  deletedAt             DateTime?          @map("deleted_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  ownedPools             Pool[]                @relation("PoolOwner")
+  poolMemberships        PoolMembership[]
+  predictions            Prediction[]
+  notificationPreference NotificationPreference?
+  createdPoolInvites     PoolDirectedInvite[]  @relation("PoolDirectedInviteCreator")
+  poolDirectedInvites    PoolDirectedInvite[]  @relation("PoolDirectedInviteRecipient")
+
+  @@unique([nicknameBase, nicknameDiscriminator])
+  @@index([deletedAt])
+  @@map("profiles")
+}
+
+// Server-side cooldown for email-bound actions (resend confirmation). Keyed by
+// email because unconfirmed accounts may not have a profile row yet.
+model EmailActionThrottle {
+  id         String   @id @default(uuid()) @db.Uuid
+  email      String   @db.VarChar(255)
+  action     String   @db.VarChar(40)
+  lastSentAt DateTime @default(now()) @map("last_sent_at")
+
+  @@unique([email, action])
+  @@map("email_action_throttle")
+}
+
+// Default avatar set — seeded via src/scripts/seed-avatars.ts (Phase 1.1, manual for now).
+model AvatarAsset {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(80)
+  storageUrl   String   @map("storage_url")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("avatar_assets")
+}
+
+enum PoolType {
+  PUBLIC
+  PRIVATE
+}
+
+// Defined now (schema is cheap), not consumed by any handler until Bolt 7 —
+// no pools-api.ts exists on mobile yet (ADR-028).
+model Pool {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @db.VarChar(60)
+  type             PoolType
+  capacity         Int
+  inviteToken      String   @unique @map("invite_token") @db.VarChar(12)
+  ownerId          String   @map("owner_id") @db.Uuid
+  membersCanInvite Boolean  @default(true) @map("members_can_invite")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  owner           Profile              @relation("PoolOwner", fields: [ownerId], references: [id])
+  memberships     PoolMembership[]
+  directedInvites PoolDirectedInvite[]
+  predictions     Prediction[]
+
+  @@index([ownerId])
+  @@index([type])
+  @@map("pools")
+}
+
+enum PoolDirectedInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model PoolDirectedInvite {
+  id               String                   @id @default(uuid()) @db.Uuid
+  poolId           String                   @map("pool_id") @db.Uuid
+  invitedUserId    String?                  @map("invited_user_id") @db.Uuid
+  invitedEmailHash String?                  @map("invited_email_hash") @db.VarChar(128)
+  inviteToken      String                   @map("invite_token") @db.VarChar(12)
+  createdByUserId  String                   @map("created_by_user_id") @db.Uuid
+  status           PoolDirectedInviteStatus @default(PENDING)
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  acceptedAt       DateTime?                @map("accepted_at")
+
+  pool          Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  invitedUser   Profile? @relation("PoolDirectedInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  createdByUser Profile  @relation("PoolDirectedInviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, invitedUserId])
+  @@index([invitedUserId])
+  @@index([createdByUserId])
+  @@map("pool_directed_invites")
+}
+
+model PoolMembership {
+  id         String    @id @default(uuid()) @db.Uuid
+  poolId     String    @map("pool_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+  archivedAt DateTime? @map("archived_at")
+
+  pool Pool    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, userId])
+  @@index([userId])
+  @@map("pool_memberships")
+}
+
+enum CompetitionPhaseType {
+  GROUP
+  KNOCKOUT
+  LEAGUE
+}
+
+model Competition {
+  id        String    @id @default(uuid()) @db.Uuid
+  slug      String    @unique @db.VarChar(80)
+  name      String    @db.VarChar(120)
+  season    String    @db.VarChar(20)
+  startsAt  DateTime? @map("starts_at")
+  endsAt    DateTime? @map("ends_at")
+  isActive  Boolean   @default(false) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  phases  CompetitionPhase[]
+  matches Match[]
+
+  @@index([isActive])
+  @@map("competitions")
+}
+
+model CompetitionPhase {
+  id            String               @id @default(uuid()) @db.Uuid
+  competitionId String               @map("competition_id") @db.Uuid
+  name          String               @db.VarChar(120)
+  type          CompetitionPhaseType
+  groupCode     String?              @map("group_code") @db.VarChar(8)
+  displayOrder  Int                  @map("display_order")
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  matches     Match[]
+
+  @@unique([competitionId, displayOrder])
+  @@index([competitionId, type])
+  @@map("competition_phases")
+}
+
+model Team {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(120)
+  fifaCode  String   @unique @map("fifa_code") @db.Char(3)
+  flagKey   String   @map("flag_key") @db.VarChar(24)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  homeMatches        Match[]      @relation("MatchHomeTeam")
+  awayMatches        Match[]      @relation("MatchAwayTeam")
+  winnerMatches      Match[]      @relation("MatchWinnerTeam")
+  penaltyPredictions Prediction[] @relation("PredictionPenaltyTeam")
+
+  @@map("teams")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LOCKED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+model Match {
+  id               String      @id @default(uuid()) @db.Uuid
+  competitionId    String      @map("competition_id") @db.Uuid
+  phaseId          String      @map("phase_id") @db.Uuid
+  matchNumber      Int?        @map("match_number")
+  kickoffAt        DateTime?   @map("kickoff_at")
+  status           MatchStatus @default(SCHEDULED)
+  homeTeamId       String?     @map("home_team_id") @db.Uuid
+  awayTeamId       String?     @map("away_team_id") @db.Uuid
+  homePlaceholder  String?     @map("home_placeholder") @db.VarChar(120)
+  awayPlaceholder  String?     @map("away_placeholder") @db.VarChar(120)
+  homeScore        Int?        @map("home_score")
+  awayScore        Int?        @map("away_score")
+  homePenaltyScore Int?        @map("home_penalty_score")
+  awayPenaltyScore Int?        @map("away_penalty_score")
+  winnerTeamId     String?     @map("winner_team_id") @db.Uuid
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  competition Competition      @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  phase       CompetitionPhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  homeTeam    Team?            @relation("MatchHomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team?            @relation("MatchAwayTeam", fields: [awayTeamId], references: [id])
+  winnerTeam  Team?            @relation("MatchWinnerTeam", fields: [winnerTeamId], references: [id])
+  predictions Prediction[]
+
+  @@unique([competitionId, matchNumber])
+  @@index([competitionId])
+  @@index([phaseId])
+  @@index([status])
+  @@index([kickoffAt])
+  @@map("matches")
+}
+
+enum PredictionLockReason {
+  KICKOFF_REACHED
+  MATCH_STATUS_LOCKED
+  MATCH_NOT_EDITABLE
+  POSTPONED
+  CANCELLED
+}
+
+model Prediction {
+  id                  String                @id @default(uuid()) @db.Uuid
+  userId              String                @map("user_id") @db.Uuid
+  matchId             String                @map("match_id") @db.Uuid
+  poolId              String?               @map("pool_id") @db.Uuid
+  homeScore           Int                   @map("home_score")
+  awayScore           Int                   @map("away_score")
+  penaltyWinnerTeamId String?               @map("penalty_winner_team_id") @db.Uuid
+  lockedAt            DateTime?             @map("locked_at")
+  lockReason          PredictionLockReason? @map("lock_reason")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  user        Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match       Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  pool        Pool?   @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  penaltyTeam Team?   @relation("PredictionPenaltyTeam", fields: [penaltyWinnerTeamId], references: [id])
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([poolId])
+  @@index([lockedAt])
+  @@map("predictions")
+}
+
+model NotificationPreference {
+  userId             String   @id @map("user_id") @db.Uuid
+  matchStarted       Boolean  @default(false) @map("match_started")
+  matchFinished      Boolean  @default(false) @map("match_finished")
+  poolInvite         Boolean  @default(false) @map("pool_invite")
+  globalRankImproved Boolean  @default(false) @map("global_rank_improved")
+  goalScored         Boolean  @default(false) @map("goal_scored")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
