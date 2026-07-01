@@ -19,6 +19,10 @@ import type { ScreenClass } from '@/domain/auth/screen-class';
  *     step, so no new tag is needed (design.md §5.1).
  *   - `ChangeNickname`/`ChangeAvatar`/`ChangeLocale` (PROFILE-5, Settings)
  *     get the `protected` tag, same as the existing Settings rows.
+ *
+ * Bolt 6 addition (design.md §4): `Predictions` gets the `protected` tag —
+ * same as `Home` — reachable only past the onboarding gate (Bolt 3's
+ * dependency, not re-implemented here).
  */
 export const SCREEN_REGISTRY = {
   // ── Unauthenticated / auth-only ──
@@ -40,6 +44,7 @@ export const SCREEN_REGISTRY = {
 
   // ── Protected app screens ──
   Home: ['protected'] as ScreenClass,
+  Predictions: ['protected'] as ScreenClass,
 
   // ── Settings area (Bolt 2 + Bolt 3) ──
   AccountSettings: ['protected'] as ScreenClass,

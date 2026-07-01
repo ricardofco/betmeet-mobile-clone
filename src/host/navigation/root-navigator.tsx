@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Linking, StyleSheet, Text, View } from 'react-native';
 import { RemoteBoundary } from '@/host/remote-boundary';
@@ -11,6 +12,7 @@ import { TotpEnrollmentScreen } from '@/host/settings/screens/totp-enrollment-sc
 import { ChangeNicknameScreen } from '@/host/profile/screens/change-nickname-screen';
 import { ChangeAvatarScreen } from '@/host/profile/screens/change-avatar-screen';
 import { ChangeLocaleScreen } from '@/host/profile/screens/change-locale-screen';
+import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { parseDeepLink } from '@/domain/auth/parse-deep-link';
 import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -21,6 +23,9 @@ import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navi
  * Bolt 2: adds SettingsStack inside the authenticated app tree, and wires
  * the deep-link handler (ADR-005) for OAuth callbacks and password-reset
  * links.
+ * Bolt 6 (design.md §4): registers `Predictions` directly on `AppStack`
+ * (host-placed, `requirements.md §7.4`) — the first bolt to mount Bolt 5's
+ * fixture-derived UI on a real, reachable screen.
  *
  * Deep links are handled imperatively below (`Linking.getInitialURL()` +
  * `Linking.addEventListener`), not via `NavigationContainer`'s `linking`
@@ -79,7 +84,9 @@ function SettingsStackNavigator() {
   );
 }
 
-function HomeScreen() {
+type HomeScreenProps = NativeStackScreenProps<AppStackParamList, 'Home'>;
+
+function HomeScreen({ navigation }: HomeScreenProps) {
   const [showRemote, setShowRemote] = useState(false);
 
   const handleLoadRemote = useCallback(() => {
@@ -90,9 +97,14 @@ function HomeScreen() {
     setShowRemote(false);
   }, []);
 
+  const handleGoToPredictions = useCallback(() => {
+    navigation.navigate('Predictions');
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Liga Mundial</Text>
+      <Button title="Predictions" onPress={handleGoToPredictions} />
       <Text style={styles.subtitle}>
         Host bundle is running. Tap below to load the federated `education` remote.
       </Text>
@@ -112,6 +124,11 @@ function AppTree() {
   return (
     <AppStack.Navigator>
       <AppStack.Screen name="Home" component={HomeScreen} options={{ title: 'Liga Mundial' }} />
+      <AppStack.Screen
+        name="Predictions"
+        component={PredictionsScreen}
+        options={{ title: 'Predictions' }}
+      />
       <AppStack.Screen
         name="Settings"
         component={SettingsStackNavigator}

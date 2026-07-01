@@ -3,8 +3,8 @@
 > **Agent note:** This is your long-term progress tracker. Update it whenever you complete a Bolt, close a phase, or reach a major milestone.
 
 ## Overall Status
-- **Current Phase:** Construction — **Bolt 5 (Competition read model) closed at Layer 1.** Layer 2 explicitly deferred to Bolt 6 (this bolt ships real UI/hooks but deliberately no navigator/screen registration — see activeContext.md for the six manual test paths). **Bolt 6 (Predictions core) is next per bolt-plan sequencing — both its dependencies (Bolt 4, Bolt 5) are now done.**
-- **Bolts Completed:** 5.5 / 13 (Bolt 0 ✅, Bolt 1 ✅ both layers; Bolt 2 Layer 1 ✅ / Layer 2 pending manual; Bolt 3 Layer 1 ✅ / Layer 2 pending manual; Bolt 4 Layer 1 ✅ / Layer 2 pending manual; Bolt 5 Layer 1 ✅ / Layer 2 deferred to Bolt 6)
+- **Current Phase:** Construction — **Bolt 6 (Predictions core) closed at Layer 1.** This is the first bolt to mount a real, navigable Predictions screen — Layer 2 not run in this environment (no simulator available); 10 manual test paths documented, including Bolt 5's six previously-deferred paths, now re-scoped. **Bolt 7 (Pools core) is next per bolt-plan sequencing — its only dependency (Bolt 3) is already done.**
+- **Bolts Completed:** 6.5 / 13 (Bolt 0 ✅, Bolt 1 ✅ both layers; Bolt 2 Layer 1 ✅ / Layer 2 pending manual; Bolt 3 Layer 1 ✅ / Layer 2 pending manual; Bolt 4 Layer 1 ✅ / Layer 2 pending manual; Bolt 5 Layer 1 ✅ / Layer 2 deferred to Bolt 6 (now addressed); Bolt 6 Layer 1 ✅ / Layer 2 pending manual)
 
 ## Milestones Achieved
 - [x] Memory Bank and standards initialized
@@ -27,7 +27,9 @@
 - [x] Bolt 4 Layer 1 — 229 tests passing across 30 suites (27 new tests across 2 new suites: scoring-rules, compute-score). No new npm deps, no rspack/jest config changes. `yarn tsc --noEmit` clean. `yarn lint` — same one pre-existing error in Bolt 2's `supabase-adapter.ts`, not touched by this bolt. Algorithm cross-checked directly against betmeet-clone's verified source — no reconciliation needed (unlike Bolt 3's ADR-011 case).
 - [ ] Bolt 4 Layer 2 — deferred to manual verification by user. No device-surface behavior to verify directly (pure-logic package); Layer 2 integration paths require Bolt 6 (Predictions), Bolt 9 (Rankings), or Bolt 11 (Education) to be implemented first. Test paths documented in `bolt-4-scoring-package/implement-and-test.md`.
 - [x] Bolt 5 Layer 1 — 295 tests passing across 44 suites (66 new tests across 14 new suites: match-status, fifa-team-display, fixture-day-grouping, live-update-policy (domain); team-badge, match-card, fixture-list, live-indicator, fixture-day-section, flag-badge, flag-catalog (shared/components); use-fixture-query, use-live-competition-subscription, competition-store (shared/hooks/store)). `yarn tsc --noEmit` and `yarn lint` clean (same one pre-existing, unrelated lint error in Bolt 2's `supabase-adapter.ts`, not touched by this bolt). `@shopify/flash-list` added as a new dependency (first FlashList consumer).
-- [ ] Bolt 5 Layer 2 — explicitly deferred to Bolt 6, not "pending manual" in the open-ended Bolt 2/3/4 sense: this bolt ships no navigator/screen registration by design (components/hooks are ready-to-mount only), so there is currently no way to navigate to a fixture screen at all. Six manual test paths documented in `bolt-5-competition-read-model/implement-and-test.md`, to run once Bolt 6 mounts `FixtureList`/`use-live-competition-subscription` on a real screen.
+- [x] Bolt 5 Layer 2 — was explicitly deferred to Bolt 6 (this bolt shipped no navigator/screen registration by design). **Now addressed**: Bolt 6 mounts `useFixtureQuery`/`useLiveCompetitionSubscription` on a real screen via its own `PredictionsFixtureList`/`PredictionMatchCard` (ADR-025, reuses Bolt 5's domain logic and hooks but not `FixtureList`/`MatchCard` directly). Bolt 5's six manual test paths are re-scoped and included in `bolt-6-predictions-core/implement-and-test.md`, not yet actually run on a device.
+- [x] Bolt 6 Layer 1 — 377 tests passing across 54 suites (82 new tests across 10 new suites: prediction-eligibility, prediction-entry-validation, prediction-score-display (domain); use-predictions-query (hooks); prediction-score-input, penalty-winner-selector, score-breakdown-panel, prediction-match-card, predictions-fixture-list (components); predictions-screen (screen)). `yarn tsc --noEmit` and `yarn lint` clean (same one pre-existing, unrelated lint error in Bolt 2's `supabase-adapter.ts`, not touched by this bolt). No new npm dependency added — bundle-size discipline verified via empty `package.json`/`yarn.lock` diff. First bolt to register a real `Predictions` route on the host `AppStack`.
+- [ ] Bolt 6 Layer 2 — not run in this environment (no simulator available). 10 manual test paths documented in `bolt-6-predictions-core/implement-and-test.md`, incl. Bolt 5's six re-scoped paths and two new bolt-6-specific risk checks (kickoff-lock UI correctness, FlashList perf with interactive per-row inputs — both explicitly named risks in bolt-plan.md).
 
 ## Bolts (Execution Units)
 
@@ -38,10 +40,10 @@
 | 2 | Auth secondary flows (OAuth, MFA, password reset, change password/email) | Bolt 1 | Medium-High | **Layer 1 ✅ (129 tests)** / Layer 2 pending manual |
 | 3 | Profile & onboarding wizard | Bolt 1 | Medium | **Layer 1 ✅ (202 tests)** / Layer 2 pending manual |
 | 4 | Scoring package *(parallelizable with 1–3)* | Bolt 0 | Low | **Layer 1 ✅ (229 tests)** / Layer 2 pending manual |
-| 5 | Competition read model (fixtures, live updates, team/flag data) | Bolt 1 | Low-Medium | **Layer 1 ✅ (295 tests)** / Layer 2 deferred to Bolt 6 |
-| 6 | Predictions core | Bolt 3, 4, 5 | Medium | Not started — **both dependencies (4, 5) now done** |
-| 7 | Pools core | Bolt 3 | Low-Medium | Not started |
-| 8 | Pools advanced + predictions↔pools integration + account deletion | Bolt 6, 7 | Medium-High | Not started |
+| 5 | Competition read model (fixtures, live updates, team/flag data) | Bolt 1 | Low-Medium | **Layer 1 ✅ (295 tests)** / Layer 2 addressed via Bolt 6 (not yet run on device) |
+| 6 | Predictions core | Bolt 3, 4, 5 | Medium | **Layer 1 ✅ (377 tests)** / Layer 2 pending manual |
+| 7 | Pools core | Bolt 3 | Low-Medium | Not started — **dependency (3) already done** |
+| 8 | Pools advanced + predictions↔pools integration + account deletion | Bolt 6, 7 | Medium-High | Not started — **dependency Bolt 6 now done, still waiting on Bolt 7** |
 | 9 | Scoring & rankings | Bolt 6, 8 | Medium | Not started |
 | 10 | Notifications (native push) | Bolt 1, 3 + FCM/APNs infra setup | High | Not started |
 | 11 | Education (Rules Center) | Bolt 3, 4 | Low | Not started |
@@ -58,5 +60,9 @@ Full detail, sequencing diagram, and risk rollup: `memory-bank/intents/liga-mund
 - Push-SDK choice (Expo Notifications vs. direct FCM/APNs SDKs) and FCM/APNs project/certificate setup — must be resolved before Bolt 10 opens, not mid-bolt.
 - Where the backend API contract mobile depends on physically lives (inside `betmeet-clone` vs. a separate service) — out of this repo's authority; needed before any bolt that calls it can integrate end-to-end.
 - Repo's HEAD is detached at the initial commit (not on a branch) — pre-existing, unrelated to Bolt 0, flagged for whenever commits are made.
-- **Bolt 5: real flag artwork not yet vendored** — `src/shared/competition/flags/` currently renders placeholder colored swatches, not the real `lipis/flag-icons` SVG set (no network access in this environment). Must be resolved before any release build; a content-only change (`flag-catalog.ts`), no consumer code changes needed. See activeContext.md Known Issues.
-- **Bolt 5: Realtime channel/event naming unconfirmed** — `subscribeToLiveResults()`'s `live-results`/`results-updated` naming is a best-guess against the domain description, not yet verified against a real backend contract; isolated behind the adapter seam.
+- **Bolt 5: real flag artwork not yet vendored** — `src/shared/competition/flags/` currently renders placeholder colored swatches, not the real `lipis/flag-icons` SVG set (no network access in this environment). Must be resolved before any release build; a content-only change (`flag-catalog.ts`), no consumer code changes needed. See activeContext.md Known Issues. Inherited unchanged into Bolt 6 (Predictions reuses `TeamBadge`/`FlagBadge` as-is).
+- **Bolt 5: Realtime channel/event naming unconfirmed** — `subscribeToLiveResults()`'s `live-results`/`results-updated` naming is a best-guess against the domain description, not yet verified against a real backend contract; isolated behind the adapter seam. Inherited unchanged into Bolt 6.
+- **Bolt 6: `predictions.*`/`competition.getKnockoutPhaseIds` capability contracts unconfirmed against a real backend** — same category of gap as other `*-api.ts` seams; contract-only, Layer 1 mocks them.
+- **Bolt 6: `getFixtureWithMyPredictions` is not a real backend endpoint** — this bolt joins fixture + predictions client-side (`useMatchesWithMyPredictions`) instead; isolated to one function if a combined endpoint is added later.
+- **Bolt 6: PREDICTIONS-3/PREDICTIONS-4 (pool override/dual-save, reset override) explicitly out of scope**, deferred to Bolt 8 per bolt-plan sequencing — types are shaped to accept the future fields (`poolId`) but no UI sends them yet.
+- **Bolt 6: the `units/unit-05-predictions/` story files referenced by bolt-plan.md are not present in this repo** — scope was reconciled against `domain-overview.md`/`system-context.md` directly; no ambiguity requiring a reconciliation ADR was found (unlike Bolt 3's ADR-011).
