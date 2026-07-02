@@ -11,3 +11,9 @@ declare module 'education/App' {
   const EducationRemoteApp: ComponentType;
   export default EducationRemoteApp;
 }
+
+declare module 'pools/App' {
+  import type { ComponentType } from 'react';
+  const PoolsRemoteApp: ComponentType;
+  export default PoolsRemoteApp;
+}

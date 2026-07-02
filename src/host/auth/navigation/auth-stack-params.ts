@@ -31,6 +31,7 @@ export type MfaStackParamList = {
 export type AppStackParamList = {
   Home: undefined;
   Predictions: undefined;
+  Pools: undefined;
   Settings: undefined;
 };
 

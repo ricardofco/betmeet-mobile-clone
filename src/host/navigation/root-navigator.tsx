@@ -26,6 +26,11 @@ import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navi
  * Bolt 6 (design.md §4): registers `Predictions` directly on `AppStack`
  * (host-placed, `requirements.md §7.4`) — the first bolt to mount Bolt 5's
  * fixture-derived UI on a real, reachable screen.
+ * Bolt 7 (design.md §4/§5, ADR-032/ADR-034): registers `Pools` on
+ * `AppStack`, mounting the `pools` remote's single exposed `./App` module
+ * (a self-contained nested navigator) via `lazy` + `RemoteBoundary` — same
+ * on-demand-download wiring shape as the `education` remote (Bolt 0), the
+ * first real feature remote since then.
  *
  * Deep links are handled imperatively below (`Linking.getInitialURL()` +
  * `Linking.addEventListener`), not via `NavigationContainer`'s `linking`
@@ -41,6 +46,8 @@ const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 // Loaded lazily so the host bundle never pays for the remote's code until
 // the user actually requests it (ADR-002).
 const EducationRemoteApp = lazy(() => import('education/App'));
+// Bolt 7 (ADR-032/ADR-034) — the pools remote, same on-demand pattern.
+const PoolsRemoteApp = lazy(() => import('pools/App'));
 
 function SettingsStackNavigator() {
   return (
@@ -101,10 +108,15 @@ function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.navigate('Predictions');
   }, [navigation]);
 
+  const handleGoToPools = useCallback(() => {
+    navigation.navigate('Pools');
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Liga Mundial</Text>
       <Button title="Predictions" onPress={handleGoToPredictions} />
+      <Button title="Pools" onPress={handleGoToPools} />
       <Text style={styles.subtitle}>
         Host bundle is running. Tap below to load the federated `education` remote.
       </Text>
@@ -120,6 +132,27 @@ function HomeScreen({ navigation }: HomeScreenProps) {
   );
 }
 
+/**
+ * Wraps the `pools` remote's exposed `./App` module in `RemoteBoundary`
+ * (design.md §8, ADR-032) — same graceful-fallback pattern every remote
+ * mount uses (ADR-002), so a failed chunk download shows a retry
+ * affordance instead of crashing the host. `key` forces a fresh `Suspense`
+ * boundary on retry, matching `RemoteBoundary`'s own retry contract.
+ */
+function PoolsScreen() {
+  const [attempt, setAttempt] = useState(0);
+
+  const handleRetry = useCallback(() => {
+    setAttempt(current => current + 1);
+  }, []);
+
+  return (
+    <RemoteBoundary key={attempt} onRetry={handleRetry}>
+      <PoolsRemoteApp />
+    </RemoteBoundary>
+  );
+}
+
 function AppTree() {
   return (
     <AppStack.Navigator>
@@ -128,6 +161,11 @@ function AppTree() {
         name="Predictions"
         component={PredictionsScreen}
         options={{ title: 'Predictions' }}
+      />
+      <AppStack.Screen
+        name="Pools"
+        component={PoolsScreen}
+        options={{ title: 'Pools', headerShown: false }}
       />
       <AppStack.Screen
         name="Settings"

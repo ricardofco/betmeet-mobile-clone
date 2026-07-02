@@ -23,6 +23,11 @@ import type { ScreenClass } from '@/domain/auth/screen-class';
  * Bolt 6 addition (design.md §4): `Predictions` gets the `protected` tag —
  * same as `Home` — reachable only past the onboarding gate (Bolt 3's
  * dependency, not re-implemented here).
+ *
+ * Bolt 7 addition (design.md §5): `Pools` gets the `protected` tag — same
+ * as `Home`/`Predictions`. This single route mounts the entire `pools`
+ * remote (ADR-032/ADR-034); the remote's own internal screens are invisible
+ * to this registry.
  */
 export const SCREEN_REGISTRY = {
   // ── Unauthenticated / auth-only ──
@@ -45,6 +50,7 @@ export const SCREEN_REGISTRY = {
   // ── Protected app screens ──
   Home: ['protected'] as ScreenClass,
   Predictions: ['protected'] as ScreenClass,
+  Pools: ['protected'] as ScreenClass,
 
   // ── Settings area (Bolt 2 + Bolt 3) ──
   AccountSettings: ['protected'] as ScreenClass,

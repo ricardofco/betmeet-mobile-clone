@@ -7,6 +7,8 @@ import {
   validatePenaltyWinnerRule,
   validateScoreBounds,
 } from '../services/prediction-eligibility';
+import { generateUniqueInviteToken } from '../services/pool-invite-token';
+import { canKick, canLeave, isOwner } from '../services/pool-permissions';
 import type { AuthedRequest } from '../middleware/auth';
 
 type Auth = AuthedRequest['auth'];
@@ -363,6 +365,310 @@ const save: Handler = async (auth, body) => {
   };
 };
 
+// ---------------------------------------------------------------------------
+// pools.* (design.md §2, ADR-030/ADR-032/ADR-033/ADR-035)
+//
+// Business-rule failures are returned as normal 200 JSON with an
+// {ok:false,...} shape (same style as predictions.save's LOCKED/
+// VALIDATION_FAILED) — truly exceptional cases (bad auth, unexpected DB
+// errors) throw and let the router's generic catch produce a 500, same as
+// every other handler in this file.
+//
+// @invariant None of the membership-mutating handlers below (joinByToken,
+// joinPublic, leave, kickMember, delete) read Match/Competition/
+// CompetitionPhase state. This is deliberate — ADR-033 — do not add a
+// "tournament freeze" gate here.
+// ---------------------------------------------------------------------------
+
+function poolToDto(pool: {
+  id: string;
+  name: string;
+  type: 'PUBLIC' | 'PRIVATE';
+  capacity: number;
+  inviteToken: string;
+  ownerId: string;
+  membersCanInvite: boolean;
+  createdAt: Date;
+  _count?: { memberships: number };
+}, options: { includeInviteToken: boolean; memberCount?: number }) {
+  return {
+    id: pool.id,
+    name: pool.name,
+    type: pool.type,
+    capacity: pool.capacity,
+    memberCount: options.memberCount ?? pool._count?.memberships ?? 0,
+    inviteToken: options.includeInviteToken ? pool.inviteToken : null,
+    ownerId: pool.ownerId,
+    membersCanInvite: pool.membersCanInvite,
+    createdAt: pool.createdAt.toISOString(),
+  };
+}
+
+const createPool: Handler = async (auth, body) => {
+  const name = String(body?.name ?? '').trim();
+  const type = body?.type as 'PUBLIC' | 'PRIVATE';
+  const capacity = Number(body?.capacity);
+  const membersCanInvite = body?.membersCanInvite === undefined ? true : Boolean(body.membersCanInvite);
+
+  if (name.length < 3 || name.length > 60) return { ok: false, error: 'VALIDATION_FAILED' as const };
+  if (type !== 'PUBLIC' && type !== 'PRIVATE') return { ok: false, error: 'VALIDATION_FAILED' as const };
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 100) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+
+  if (type === 'PUBLIC') {
+    const clash = await prisma.pool.findFirst({ where: { type: 'PUBLIC', name } });
+    if (clash) return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+
+  const inviteToken = await generateUniqueInviteToken(async token => {
+    const existing = await prisma.pool.findUnique({ where: { inviteToken: token } });
+    return existing !== null;
+  });
+
+  try {
+    const pool = await prisma.$transaction(async tx => {
+      const created = await tx.pool.create({
+        data: { name, type, capacity, inviteToken, ownerId: auth.userId, membersCanInvite },
+      });
+      await tx.poolMembership.create({ data: { poolId: created.id, userId: auth.userId } });
+      return created;
+    });
+    return { ok: true, pool: poolToDto(pool, { includeInviteToken: true, memberCount: 1 }) };
+  } catch {
+    return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+};
+
+const renamePool: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const name = String(body?.name ?? '').trim();
+  if (name.length < 3 || name.length > 60) return { ok: false, error: 'VALIDATION_FAILED' as const };
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+
+  if (pool.type === 'PUBLIC') {
+    const clash = await prisma.pool.findFirst({ where: { type: 'PUBLIC', name, id: { not: pool.id } } });
+    if (clash) return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+
+  try {
+    await prisma.pool.update({ where: { id: pool.id }, data: { name } });
+  } catch {
+    return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+  return { ok: true, name };
+};
+
+const deletePool: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+
+  await prisma.pool.delete({ where: { id: poolId } });
+  return { ok: true };
+};
+
+const updatePoolVisibility: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const type = body?.type as 'PUBLIC' | 'PRIVATE';
+  if (type !== 'PUBLIC' && type !== 'PRIVATE') return { ok: false, error: 'VALIDATION_FAILED' as const };
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+
+  // Idempotent — BR-65.4 (model.md §7).
+  if (pool.type === type) return { ok: true, type: pool.type };
+
+  if (type === 'PUBLIC') {
+    const clash = await prisma.pool.findFirst({ where: { type: 'PUBLIC', name: pool.name, id: { not: pool.id } } });
+    if (clash) return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+
+  try {
+    await prisma.pool.update({ where: { id: pool.id }, data: { type } });
+  } catch {
+    return { ok: false, error: 'NAME_TAKEN' as const };
+  }
+  return { ok: true, type };
+};
+
+const updatePoolMembersCanInvite: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const membersCanInvite = Boolean(body?.membersCanInvite);
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+  if (pool.type !== 'PRIVATE') return { ok: false, error: 'NOT_APPLICABLE' as const };
+
+  await prisma.pool.update({ where: { id: pool.id }, data: { membersCanInvite } });
+  return { ok: true, membersCanInvite };
+};
+
+const joinPoolByToken: Handler = async (auth, body) => {
+  const token = String(body?.token ?? '').trim().toUpperCase();
+
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const pool = await tx.pool.findUnique({
+        where: { inviteToken: token },
+        include: { _count: { select: { memberships: true } } },
+      });
+      if (!pool) throw new Error('NOT_FOUND');
+
+      const existing = await tx.poolMembership.findUnique({
+        where: { poolId_userId: { poolId: pool.id, userId: auth.userId } },
+      });
+      if (existing) return { poolId: pool.id, alreadyMember: true };
+
+      if (pool._count.memberships >= pool.capacity) throw new Error('FULL');
+      await tx.poolMembership.create({ data: { poolId: pool.id, userId: auth.userId } });
+      return { poolId: pool.id, alreadyMember: false };
+    });
+    return { ok: true, ...result };
+  } catch (err) {
+    const code = err instanceof Error ? err.message : '';
+    if (code === 'FULL') return { ok: false, error: 'FULL' as const };
+    if (code === 'NOT_FOUND') return { ok: false, error: 'NOT_FOUND' as const };
+    throw err;
+  }
+};
+
+const joinPublicPool: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const pool = await tx.pool.findUnique({
+        where: { id: poolId },
+        include: { _count: { select: { memberships: true } } },
+      });
+      if (!pool) throw new Error('NOT_FOUND');
+      if (pool.type !== 'PUBLIC') throw new Error('NOT_PUBLIC');
+
+      const existing = await tx.poolMembership.findUnique({
+        where: { poolId_userId: { poolId: pool.id, userId: auth.userId } },
+      });
+      if (existing) return { poolId: pool.id, alreadyMember: true };
+
+      if (pool._count.memberships >= pool.capacity) throw new Error('FULL');
+      await tx.poolMembership.create({ data: { poolId: pool.id, userId: auth.userId } });
+      return { poolId: pool.id, alreadyMember: false };
+    });
+    return { ok: true, ...result };
+  } catch (err) {
+    const code = err instanceof Error ? err.message : '';
+    if (code === 'FULL') return { ok: false, error: 'FULL' as const };
+    if (code === 'NOT_FOUND') return { ok: false, error: 'NOT_FOUND' as const };
+    if (code === 'NOT_PUBLIC') return { ok: false, error: 'NOT_PUBLIC' as const };
+    throw err;
+  }
+};
+
+const leavePool: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!canLeave(pool, auth.userId)) return { ok: false, error: 'OWNER_CANNOT_LEAVE' as const };
+
+  const result = await prisma.poolMembership.deleteMany({ where: { poolId, userId: auth.userId } });
+  if (result.count === 0) return { ok: false, error: 'NOT_MEMBER' as const };
+  return { ok: true };
+};
+
+const kickMember: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const targetUserId = String(body?.targetUserId ?? '');
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+  if (!canKick(pool, auth.userId, targetUserId)) return { ok: false, error: 'CANNOT_KICK_OWNER' as const };
+
+  await prisma.poolMembership.deleteMany({ where: { poolId, userId: targetUserId } });
+  return { ok: true };
+};
+
+const setPoolArchived: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const archived = Boolean(body?.archived);
+
+  const result = await prisma.poolMembership.updateMany({
+    where: { poolId, userId: auth.userId },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+  if (result.count === 0) return { ok: false, error: 'NOT_MEMBER' as const };
+  return { ok: true, archived };
+};
+
+const getMyPools: Handler = async auth => {
+  const memberships = await prisma.poolMembership.findMany({
+    where: { userId: auth.userId },
+    include: { pool: { include: { _count: { select: { memberships: true } } } } },
+    orderBy: { joinedAt: 'desc' },
+  });
+  return memberships.map(m => ({
+    ...poolToDto(m.pool, { includeInviteToken: true, memberCount: m.pool._count.memberships }),
+    viewerMembership: {
+      poolId: m.poolId,
+      userId: m.userId,
+      joinedAt: m.joinedAt.toISOString(),
+      archivedAt: m.archivedAt ? m.archivedAt.toISOString() : null,
+    },
+  }));
+};
+
+const listPublicPools: Handler = async () => {
+  const pools = await prisma.pool.findMany({
+    where: { type: 'PUBLIC' },
+    include: { _count: { select: { memberships: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  // Discovery-directory rows never expose inviteToken (design.md §2 —
+  // non-members have no legitimate use for it, mirrors betmeet-clone's
+  // real listPublicPools query).
+  return pools.map(p => poolToDto(p, { includeInviteToken: false, memberCount: p._count.memberships }));
+};
+
+const getPoolDetail: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const pool = await prisma.pool.findUnique({
+    where: { id: poolId },
+    include: {
+      _count: { select: { memberships: true } },
+      memberships: { include: { user: true }, orderBy: { joinedAt: 'asc' } },
+    },
+  });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+
+  const viewerRow = pool.memberships.find(m => m.userId === auth.userId) ?? null;
+  const isMember = viewerRow !== null;
+
+  return {
+    ok: true,
+    pool: poolToDto(pool, { includeInviteToken: isMember, memberCount: pool._count.memberships }),
+    members: pool.memberships.map(m => ({
+      userId: m.userId,
+      nickname: m.user.nicknameBase ? `${m.user.nicknameBase}#${m.user.nicknameDiscriminator}` : null,
+      isOwner: m.userId === pool.ownerId,
+      joinedAt: m.joinedAt.toISOString(),
+    })),
+    viewerMembership: viewerRow
+      ? {
+          poolId: viewerRow.poolId,
+          userId: viewerRow.userId,
+          joinedAt: viewerRow.joinedAt.toISOString(),
+          archivedAt: viewerRow.archivedAt ? viewerRow.archivedAt.toISOString() : null,
+        }
+      : null,
+  };
+};
+
 export const handlers: Record<string, Handler> = {
   'auth.resendConfirmation': resendConfirmation,
   'profile.checkNicknameAvailability': checkNicknameAvailability,
@@ -380,4 +686,17 @@ export const handlers: Record<string, Handler> = {
   'competition.getKnockoutPhaseIds': getKnockoutPhaseIds,
   'predictions.getMyPredictions': getMyPredictions,
   'predictions.save': save,
+  'pools.create': createPool,
+  'pools.rename': renamePool,
+  'pools.delete': deletePool,
+  'pools.updateVisibility': updatePoolVisibility,
+  'pools.updateMembersCanInvite': updatePoolMembersCanInvite,
+  'pools.joinByToken': joinPoolByToken,
+  'pools.joinPublic': joinPublicPool,
+  'pools.leave': leavePool,
+  'pools.kickMember': kickMember,
+  'pools.setArchived': setPoolArchived,
+  'pools.getMine': getMyPools,
+  'pools.listPublic': listPublicPools,
+  'pools.getDetail': getPoolDetail,
 };

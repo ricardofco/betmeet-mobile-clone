@@ -16,6 +16,8 @@ import { Platform } from 'react-native';
 const REMOTES: Record<string, string> = {
   // education: dev server on 8082 in development; swap for a CDN URL in prod.
   education: __DEV__ ? 'http://localhost:8082' : 'https://cdn.example.com/education',
+  // pools (Bolt 7, ADR-032): dev server on 8083; swap for a CDN URL in prod.
+  pools: __DEV__ ? 'http://localhost:8083' : 'https://cdn.example.com/pools',
 };
 
 ScriptManager.shared.addResolver(async (scriptId: string, caller?: string) => {

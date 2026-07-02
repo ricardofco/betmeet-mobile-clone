@@ -67,6 +67,9 @@ export default Repack.defineRspackConfig((env) => {
         // memory-bank/bolts/bolt-0-platform-scaffolding/.
         remotes: {
           education: `education@http://localhost:8082/${platform}/mf-manifest.json`,
+          // Bolt 7 (ADR-032) — the second real MF remote (first feature remote,
+          // not a demo shell).
+          pools: `pools@http://localhost:8083/${platform}/mf-manifest.json`,
         },
         dts: false,
         // Host shares its singletons EAGER so they load with the host bundle (ADR-002).
@@ -78,9 +81,14 @@ export default Repack.defineRspackConfig((env) => {
   };
 });
 
-// Keep this list in sync with rspack.config.education-remote.mjs (ADR-002).
-// Versions must match (singletons) to avoid duplicate React/RN across
-// federated chunks.
+// Keep this list in sync with rspack.config.education-remote.mjs AND
+// rspack.config.pools-remote.mjs (ADR-002/ADR-034). Versions must match
+// (singletons) to avoid duplicate React/RN across federated chunks.
+// @shopify/flash-list and @tanstack/react-query were added in Bolt 7
+// (ADR-034) — the `pools` remote is the first non-host consumer of both;
+// `@tanstack/react-query`'s `singleton: true` is load-bearing (not just a
+// bundle-size nicety) — it's what makes the remote's useQuery/useMutation
+// calls resolve against the host's one QueryClient instance.
 function sharedDeps(pkg, { eager }) {
   const dep = (name) => ({
     singleton: true,
@@ -95,5 +103,7 @@ function sharedDeps(pkg, { eager }) {
     '@react-navigation/native-stack': dep('@react-navigation/native-stack'),
     'react-native-safe-area-context': dep('react-native-safe-area-context'),
     'react-native-screens': dep('react-native-screens'),
+    '@shopify/flash-list': dep('@shopify/flash-list'),
+    '@tanstack/react-query': dep('@tanstack/react-query'),
   };
 }
