@@ -43,6 +43,8 @@ export type SettingsStackParamList = {
   ChangePassword: undefined;
   ChangeEmail: undefined;
   TotpEnrollment: undefined;
+  /** Bolt 8 (AUTH-6). */
+  DeleteAccount: undefined;
 };
 
 export type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';

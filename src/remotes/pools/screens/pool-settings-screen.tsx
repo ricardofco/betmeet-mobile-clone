@@ -8,16 +8,19 @@ import {
   useUpdateMembersCanInviteMutation,
   useDeletePoolMutation,
 } from '@/remotes/pools/hooks/use-pools-query';
+import { TransferOwnershipPanel } from '@/remotes/pools/components/transfer-ownership-panel';
 import { validatePoolName } from '@/domain/pools';
 import type { PoolsStackParamList } from '@/remotes/pools/navigation/pools-stack-params';
 
 type Props = NativeStackScreenProps<PoolsStackParamList, 'PoolSettings'>;
 
 /**
- * POOLS-1 (delete)/POOLS-4 (rename/visibility/membersCanInvite) —
- * owner-only settings. Deleting the pool is allowed at any time (ADR-033);
- * there is no ownership-transfer escape hatch here (Bolt 8/POOLS-7,
- * model.md §10) — this screen only ever offers delete, never "transfer."
+ * POOLS-1 (delete)/POOLS-4 (rename/visibility/membersCanInvite)/POOLS-7
+ * (ownership transfer, Bolt 8) — owner-only settings. Deleting the pool is
+ * allowed at any time (ADR-033). `TransferOwnershipPanel` is the standalone
+ * transfer affordance model.md's opening section approved as a deliberate
+ * mobile-specific addition beyond `betmeet-clone` (ADR-040) — hidden when
+ * there is no other member to transfer to.
  */
 export function PoolSettingsScreen({ route, navigation }: Props) {
   const { poolId } = route.params;
@@ -109,10 +112,12 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <TransferOwnershipPanel poolId={poolId} members={detail.members} />
+
       <View style={styles.dangerZone}>
         <Text style={styles.label}>Delete this pool</Text>
         <Text style={styles.meta}>
-          This cannot be undone. To hand off ownership instead, transferring is not yet available.
+          This cannot be undone. To hand off ownership instead, use "Transfer ownership" above.
         </Text>
         <Button title="Delete pool" color="#cc3333" onPress={handleDelete} />
       </View>

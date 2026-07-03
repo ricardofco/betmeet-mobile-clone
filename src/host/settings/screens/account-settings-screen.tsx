@@ -49,6 +49,10 @@ export function AccountSettingsScreen({ navigation }: Props) {
     navigation.navigate('TotpEnrollment');
   }, [navigation]);
 
+  const handleDeleteAccount = useCallback(() => {
+    navigation.navigate('DeleteAccount');
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Account settings</Text>
@@ -97,6 +101,11 @@ export function AccountSettingsScreen({ navigation }: Props) {
         <Text style={styles.rowLabel}>Enable two-factor authentication</Text>
         <Text style={styles.rowChevron}>›</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity accessibilityRole="button" onPress={handleDeleteAccount} style={styles.row}>
+        <Text style={[styles.rowLabel, styles.dangerLabel]}>Delete account</Text>
+        <Text style={styles.rowChevron}>›</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -130,6 +139,9 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 16,
+  },
+  dangerLabel: {
+    color: '#cc3333',
   },
   rowValue: {
     flexDirection: 'row',

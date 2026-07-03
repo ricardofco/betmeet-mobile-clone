@@ -36,6 +36,10 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
         onTogglePastMatches={jest.fn()}
         onSave={jest.fn()}
         savingMatchId={null}
+        pools={[]}
+        poolOverridesByMatch={new Map()}
+        onResetOverride={jest.fn()}
+        resettingKey={null}
       />,
     );
 
@@ -54,6 +58,10 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
         onTogglePastMatches={jest.fn()}
         onSave={jest.fn()}
         savingMatchId={null}
+        pools={[]}
+        poolOverridesByMatch={new Map()}
+        onResetOverride={jest.fn()}
+        resettingKey={null}
       />,
     );
 
@@ -77,6 +85,10 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
         onTogglePastMatches={onTogglePastMatches}
         onSave={jest.fn()}
         savingMatchId={null}
+        pools={[]}
+        poolOverridesByMatch={new Map()}
+        onResetOverride={jest.fn()}
+        resettingKey={null}
       />,
     );
 
@@ -102,6 +114,10 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
         onTogglePastMatches={jest.fn()}
         onSave={jest.fn()}
         savingMatchId="m1"
+        pools={[]}
+        poolOverridesByMatch={new Map()}
+        onResetOverride={jest.fn()}
+        resettingKey={null}
       />,
     );
 

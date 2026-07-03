@@ -91,5 +91,10 @@ function sharedDeps(pkg, { eager }) {
     'react-native-screens': dep('react-native-screens'),
     '@shopify/flash-list': dep('@shopify/flash-list'),
     '@tanstack/react-query': dep('@tanstack/react-query'),
+    // Bolt 8: this remote's predictions grid reuses `src/shared/competition`'s
+    // flag/team badges (react-native-svg-based) — must be a singleton or its
+    // Fabric native components collide with the host's own registration.
+    // See the matching comment in rspack.config.mjs.
+    'react-native-svg': dep('react-native-svg'),
   };
 }

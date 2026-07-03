@@ -1,8 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { predictionsApi, type SavePredictionInput, type SavePredictionResponse } from '@/platform/backend-api/predictions-api';
+import {
+  predictionsApi,
+  type ResetOverrideResponse,
+  type SavePredictionInput,
+  type SavePredictionResponse,
+} from '@/platform/backend-api/predictions-api';
 import { competitionApi } from '@/platform/backend-api/competition-api';
+import { poolsApi } from '@/platform/backend-api/pools-api';
 import { useFixtureQuery } from '@/shared/competition';
 import type { Match } from '@/domain/competition';
+import type { PoolPickerEntry } from '@/domain/pools';
 import type { MatchWithMyPrediction, MyPrediction } from '@/domain/predictions';
 
 /**
@@ -68,8 +75,10 @@ export function useMatchesWithMyPredictions(knockoutPhaseIds: ReadonlySet<string
 
   const predictionsByMatchId = new Map<string, MyPrediction>();
   for (const prediction of predictionsQuery.data) {
-    // Global predictions only (poolId === null) — pool-scoped overrides
-    // (Bolt 8) are intentionally excluded from this bolt's join.
+    // Global predictions only (poolId === null) — this is the card's
+    // default/no-pool-selected view. Pool-scoped overrides are joined
+    // separately (Bolt 8, `usePoolOverridesByMatch`) and passed alongside
+    // this row, not folded into `row.prediction` itself.
     if (prediction.poolId === null) {
       predictionsByMatchId.set(prediction.matchId, prediction);
     }
@@ -84,13 +93,71 @@ export function useMatchesWithMyPredictions(knockoutPhaseIds: ReadonlySet<string
   return { rows, isLoading, error };
 }
 
+/**
+ * Bolt 8 (PREDICTIONS-3, design.md §5) — every pool-scoped prediction the
+ * viewer has, grouped by `matchId`, so `PredictionMatchCard` can pre-fill
+ * an existing override's values when the user picks that pool. Derived at
+ * read time from the same `useMyPredictionsQuery()` data
+ * `useMatchesWithMyPredictions` already reads — no second query.
+ */
+export function usePoolOverridesByMatch(): Map<string, MyPrediction[]> {
+  const predictionsQuery = useMyPredictionsQuery();
+  const map = new Map<string, MyPrediction[]>();
+  for (const prediction of predictionsQuery.data ?? []) {
+    if (prediction.poolId === null) continue;
+    const existing = map.get(prediction.matchId) ?? [];
+    existing.push(prediction);
+    map.set(prediction.matchId, existing);
+  }
+  return map;
+}
+
+/**
+ * Bolt 8 (PREDICTIONS-3, design.md §1.3/§4) — the narrow "which pool to
+ * override" picker read: a lean `{id, name}[]` list of the viewer's own
+ * pool memberships, called directly through `poolsApi` (platform seam),
+ * never through anything in `src/remotes/pools/` (ADR-036).
+ */
+export const POOLS_FOR_PICKER_QUERY_KEY = ['pools', 'forPicker'] as const;
+
+export function usePoolsForPickerQuery() {
+  return useQuery<PoolPickerEntry[]>({
+    queryKey: POOLS_FOR_PICKER_QUERY_KEY,
+    queryFn: () => poolsApi.getMyPoolsForPicker(),
+  });
+}
+
 export function useSavePredictionMutation() {
   const invalidate = useInvalidateMyPredictionsQuery();
+  const queryClient = useQueryClient();
   return useMutation<SavePredictionResponse, unknown, SavePredictionInput>({
     mutationFn: input => predictionsApi.savePrediction(input),
+    onSuccess: (response, variables) => {
+      if (response.ok) {
+        invalidate();
+        // Bolt 8 (design.md §6): a pool-scoped save also refreshes any
+        // mounted `pools` remote member-prediction grid for that pool —
+        // works today with zero new cross-bundle import because
+        // `@tanstack/react-query` is an MF-shared singleton (ADR-034); the
+        // host and the `pools` remote share the exact same `QueryClient`.
+        if (variables.poolId) {
+          queryClient.invalidateQueries({ queryKey: ['pools', 'memberPredictions'] });
+        }
+      }
+    },
+  });
+}
+
+/** Bolt 8 — PREDICTIONS-4 (design.md §5). */
+export function useResetOverrideMutation() {
+  const invalidate = useInvalidateMyPredictionsQuery();
+  const queryClient = useQueryClient();
+  return useMutation<ResetOverrideResponse, unknown, { matchId: string; poolId: string }>({
+    mutationFn: input => predictionsApi.resetOverride(input),
     onSuccess: response => {
       if (response.ok) {
         invalidate();
+        queryClient.invalidateQueries({ queryKey: ['pools', 'memberPredictions'] });
       }
     },
   });

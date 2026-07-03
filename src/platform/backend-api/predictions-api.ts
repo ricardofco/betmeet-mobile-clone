@@ -29,11 +29,21 @@ export type SavePredictionInput = {
   homeScore: number;
   awayScore: number;
   penaltyWinner: MyPrediction['penaltyWinner'];
+  /**
+   * Bolt 8 (PREDICTIONS-3, design.md §3/§5) — when `poolId` is set and no
+   * global/override prediction exists yet for this match, write both the
+   * pool override and the global prediction atomically in one request
+   * (ADR-039). Ignored (never sent) when `poolId` is null.
+   */
+  alsoSaveAsGlobal?: boolean;
 };
 
 export type SavePredictionResponse =
   | { ok: true; prediction: MyPrediction }
-  | { ok: false; error: 'LOCKED' | 'VALIDATION_FAILED' };
+  | { ok: false; error: 'LOCKED' | 'VALIDATION_FAILED' | 'NOT_MEMBER' };
+
+/** Bolt 8 — PREDICTIONS-4 (design.md §3). */
+export type ResetOverrideResponse = { ok: true } | { ok: false; error: 'NOT_MEMBER' };
 
 export const predictionsApi = {
   async getMyPredictions(): Promise<MyPrediction[]> {
@@ -45,6 +55,13 @@ export const predictionsApi = {
   async savePrediction(input: SavePredictionInput): Promise<SavePredictionResponse> {
     return getBackendApiClient().request<SavePredictionResponse, SavePredictionInput>({
       capability: 'predictions.save',
+      body: input,
+    });
+  },
+
+  async resetOverride(input: { matchId: string; poolId: string }): Promise<ResetOverrideResponse> {
+    return getBackendApiClient().request<ResetOverrideResponse, typeof input>({
+      capability: 'predictions.resetOverride',
       body: input,
     });
   },

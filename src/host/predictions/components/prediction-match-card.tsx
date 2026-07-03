@@ -1,20 +1,24 @@
 import { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { TeamBadge, LiveIndicator } from '@/shared/competition';
 import { PredictionScoreInput } from '@/host/predictions/components/prediction-score-input';
 import { PenaltyWinnerSelector } from '@/host/predictions/components/penalty-winner-selector';
 import { ScoreBreakdownPanel } from '@/host/predictions/components/score-breakdown-panel';
+import { PoolOverridePicker } from '@/host/predictions/components/pool-override-picker';
 import {
   buildScoreBreakdown,
   canShowScoreBreakdown,
   describeLockReason,
   getPredictionEligibility,
+  shouldOfferDualSave,
   shouldShowPenaltyWinnerSelector,
   validatePredictionEntry,
   type MatchWithMyPrediction,
+  type MyPrediction,
   type PenaltyWinner,
 } from '@/domain/predictions';
 import { isLiveStatus, describeMatchStatus, describeTeamSlot } from '@/domain/competition';
+import type { PoolPickerEntry } from '@/domain/pools';
 import type { SavePredictionInput } from '@/platform/backend-api/predictions-api';
 
 type PredictionMatchCardProps = {
@@ -22,6 +26,15 @@ type PredictionMatchCardProps = {
   now: string;
   onSave: (input: SavePredictionInput) => void;
   isSaving: boolean;
+  /** Bolt 8 (PREDICTIONS-3) — the viewer's own pool memberships, for the
+   * override picker. Empty for a viewer with no pools — the picker then
+   * renders nothing (design.md §5). */
+  pools: PoolPickerEntry[];
+  /** This match's pool-scoped predictions (any pool), for pre-filling an
+   * existing override's values and deciding whether "reset" applies. */
+  poolOverrides: MyPrediction[];
+  onResetOverride: (input: { matchId: string; poolId: string }) => void;
+  isResettingOverride: boolean;
 };
 
 function formatKickoffTime(kickoffAt: string | null): string {
@@ -30,29 +43,67 @@ function formatKickoffTime(kickoffAt: string | null): string {
 }
 
 /**
- * One prediction-capable match row (PREDICTIONS-1/2/5). This is the
- * prediction-entry equivalent of Bolt 5's read-only `MatchCard` — see
- * ADR-025 for why it is a separate component rather than an extension of
- * `MatchCard` itself.
+ * One prediction-capable match row (PREDICTIONS-1/2/5, extended by Bolt 8
+ * for PREDICTIONS-3/4). This is the prediction-entry equivalent of Bolt 5's
+ * read-only `MatchCard` — see ADR-025 for why it is a separate component
+ * rather than an extension of `MatchCard` itself.
  *
- * Per-row edit-draft state (`homeScore`/`awayScore`/`penaltyWinner`) is
- * local `useState`, not Zustand and not cached in a query (design.md §5 —
- * mirrors ADR-020's reasoning for `LiveSubscriptionState`: single-owner,
- * single-consumer, ephemeral UI state). This also means typing in one row
- * never re-renders sibling rows (`vercel-react-native-skills` hot-path
- * discipline, ADR-022/ADR-025 precedent) since the draft never lives above
- * this component.
+ * Per-row edit-draft state (`homeScore`/`awayScore`/`penaltyWinner`, and now
+ * `selectedPoolId`/`dualSaveChecked`) is local `useState`, not Zustand and
+ * not cached in a query (design.md §5/§6 — mirrors ADR-020's reasoning:
+ * single-owner, single-consumer, ephemeral UI state). This also means
+ * picking a pool or typing in one row never re-renders sibling rows
+ * (`vercel-react-native-skills` hot-path discipline, ADR-022/ADR-025
+ * precedent) since the draft never lives above this component.
  *
  * `getPredictionEligibility()` is evaluated on every render against the
  * caller-supplied `now` (ADR-023: advisory-only, never the actual gate —
  * the backend/DB trigger are the real enforcement).
  */
-function PredictionMatchCardComponent({ row, now, onSave, isSaving }: PredictionMatchCardProps) {
+function PredictionMatchCardComponent({
+  row,
+  now,
+  onSave,
+  isSaving,
+  pools,
+  poolOverrides,
+  onResetOverride,
+  isResettingOverride,
+}: PredictionMatchCardProps) {
   const { match, prediction, isKnockout } = row;
 
+  const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
+  const [dualSaveChecked, setDualSaveChecked] = useState(false);
   const [homeScore, setHomeScore] = useState<number | null>(prediction?.homeScore ?? null);
   const [awayScore, setAwayScore] = useState<number | null>(prediction?.awayScore ?? null);
   const [penaltyWinner, setPenaltyWinner] = useState<PenaltyWinner>(prediction?.penaltyWinner ?? null);
+
+  const overrideForSelectedPool = useMemo(
+    () => (selectedPoolId ? (poolOverrides.find(p => p.poolId === selectedPoolId) ?? null) : null),
+    [selectedPoolId, poolOverrides],
+  );
+
+  const handleSelectPool = useCallback(
+    (poolId: string | null) => {
+      setSelectedPoolId(poolId);
+      setDualSaveChecked(false);
+      if (poolId === null) {
+        setHomeScore(prediction?.homeScore ?? null);
+        setAwayScore(prediction?.awayScore ?? null);
+        setPenaltyWinner(prediction?.penaltyWinner ?? null);
+        return;
+      }
+      // Pre-fill from the existing override if there is one, else from the
+      // current global prediction (matches betmeet-clone's real
+      // `handleStartEdit` pre-fill behavior — model.md §6).
+      const override = poolOverrides.find(p => p.poolId === poolId) ?? null;
+      const source = override ?? prediction;
+      setHomeScore(source?.homeScore ?? null);
+      setAwayScore(source?.awayScore ?? null);
+      setPenaltyWinner(source?.penaltyWinner ?? null);
+    },
+    [prediction, poolOverrides],
+  );
 
   const eligibility = useMemo(() => getPredictionEligibility(match, now), [match, now]);
   const editable = eligibility.editable;
@@ -75,16 +126,32 @@ function PredictionMatchCardComponent({ row, now, onSave, isSaving }: Prediction
 
   const canSave = editable && homeScore !== null && awayScore !== null && validation.valid;
 
+  // PREDICTIONS-3 (model.md §6): dual-save is only offered when neither a
+  // global nor an override exists yet for the selected pool.
+  const offerDualSave =
+    selectedPoolId !== null &&
+    shouldOfferDualSave({ hasGlobal: prediction !== null, hasOverride: overrideForSelectedPool !== null });
+
+  // model.md §5's web-parity rule: "reset to global" only makes sense when
+  // both an override AND a global prediction exist.
+  const canReset = selectedPoolId !== null && overrideForSelectedPool !== null && prediction !== null;
+
   const handleSave = useCallback(() => {
     if (!canSave || homeScore === null || awayScore === null) return;
     onSave({
       matchId: match.id,
-      poolId: null,
+      poolId: selectedPoolId,
       homeScore,
       awayScore,
       penaltyWinner,
+      ...(selectedPoolId !== null && offerDualSave && dualSaveChecked ? { alsoSaveAsGlobal: true } : {}),
     });
-  }, [canSave, homeScore, awayScore, penaltyWinner, match.id, onSave]);
+  }, [canSave, homeScore, awayScore, penaltyWinner, match.id, onSave, selectedPoolId, offerDualSave, dualSaveChecked]);
+
+  const handleReset = useCallback(() => {
+    if (!selectedPoolId) return;
+    onResetOverride({ matchId: match.id, poolId: selectedPoolId });
+  }, [selectedPoolId, match.id, onResetOverride]);
 
   const showBreakdown = canShowScoreBreakdown(match) && prediction !== null;
   const breakdown = showBreakdown
@@ -93,6 +160,15 @@ function PredictionMatchCardComponent({ row, now, onSave, isSaving }: Prediction
 
   const statusDisplay = describeMatchStatus(match.status);
   const live = isLiveStatus(match.status);
+
+  const saveButtonLabel =
+    selectedPoolId === null
+      ? prediction
+        ? 'Update prediction'
+        : 'Save prediction'
+      : overrideForSelectedPool
+        ? 'Update override'
+        : 'Save override';
 
   return (
     <View style={styles.card}>
@@ -111,6 +187,8 @@ function PredictionMatchCardComponent({ row, now, onSave, isSaving }: Prediction
         <TeamBadge team={match.awayTeam} align="away" />
       </View>
 
+      <PoolOverridePicker pools={pools} selectedPoolId={selectedPoolId} onSelect={handleSelectPool} />
+
       {showPenaltySelector ? (
         <PenaltyWinnerSelector
           homeLabel={describeTeamSlot(match.homeTeam)}
@@ -119,6 +197,26 @@ function PredictionMatchCardComponent({ row, now, onSave, isSaving }: Prediction
           onChange={setPenaltyWinner}
           editable={editable}
         />
+      ) : null}
+
+      {offerDualSave ? (
+        <View style={styles.dualSaveRow}>
+          <Text style={styles.dualSaveLabel}>Also save as my global prediction</Text>
+          <Switch
+            accessibilityLabel="Also save as my global prediction"
+            value={dualSaveChecked}
+            onValueChange={setDualSaveChecked}
+            disabled={!editable}
+          />
+        </View>
+      ) : null}
+
+      {canReset ? (
+        <Pressable accessibilityRole="button" onPress={handleReset} disabled={isResettingOverride}>
+          <Text style={styles.resetText}>
+            {isResettingOverride ? 'Resetting…' : 'Use global prediction'}
+          </Text>
+        </Pressable>
       ) : null}
 
       {!editable ? (
@@ -130,11 +228,7 @@ function PredictionMatchCardComponent({ row, now, onSave, isSaving }: Prediction
           onPress={handleSave}
           style={[styles.saveButton, (!canSave || isSaving) && styles.saveButtonDisabled]}
         >
-          {isSaving ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>{prediction ? 'Update prediction' : 'Save prediction'}</Text>
-          )}
+          {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveButtonText}>{saveButtonLabel}</Text>}
         </Pressable>
       )}
 
@@ -181,6 +275,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#9CA3AF',
+  },
+  dualSaveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dualSaveLabel: {
+    fontSize: 12,
+    color: '#374151',
+    flexShrink: 1,
+  },
+  resetText: {
+    fontSize: 12,
+    color: '#2563EB',
+    fontWeight: '600',
   },
   lockCopy: {
     fontSize: 12,

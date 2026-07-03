@@ -1,5 +1,5 @@
 import { getBackendApiClient } from '@/platform/backend-api/backend-api-client';
-import type { Pool, PoolMember, PoolMembership, PoolSummary, PoolVisibility } from '@/domain/pools';
+import type { Pool, PoolMember, PoolMembership, PoolPickerEntry, PoolSummary, PoolVisibility } from '@/domain/pools';
 
 /**
  * Typed wrappers around `BackendApiClient.request()` for the `pools.*`
@@ -55,6 +55,56 @@ export type SetArchivedResponse = { ok: true; archived: boolean } | { ok: false;
 export type PoolDetailResponse =
   | { ok: true; pool: Pool; members: PoolMember[]; viewerMembership: PoolMembership | null }
   | { ok: false; error: 'NOT_FOUND' };
+
+/** Bolt 8 — POOLS-3/POOLS-7/POOLS-6/AUTH-6 additions (design.md §3/§8). */
+export type CreateDirectedInviteResponse =
+  | { ok: true; resolved: boolean }
+  | {
+      ok: false;
+      error:
+        | 'VALIDATION_FAILED'
+        | 'NOT_FOUND'
+        | 'NOT_MEMBER'
+        | 'PERMISSION_DENIED'
+        | 'SELF_INVITE'
+        | 'UNRESOLVABLE';
+    };
+
+export type TransferOwnershipResponse =
+  | { ok: true }
+  | { ok: false; error: 'NOT_FOUND' | 'NOT_OWNER' | 'INVALID_TARGET' };
+
+export type OwnedPoolTransferDTO = {
+  poolId: string;
+  poolName: string;
+  candidates: { userId: string; nickname: string | null }[];
+};
+
+export type PoolMatchSummary = {
+  matchId: string;
+  kickoffAt: string | null;
+  matchStatus: string;
+  homeTeam: { id: string; fifaCode: string; name: string; flagKey: string } | { kind: 'placeholder'; label: string } | null;
+  awayTeam: { id: string; fifaCode: string; name: string; flagKey: string } | { kind: 'placeholder'; label: string } | null;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+export type PoolMemberPredictionCell = {
+  matchId: string;
+  userId: string;
+  predictedHome: number | null;
+  predictedAway: number | null;
+  totalPoints: number | null;
+  matchedCase: 'EXACT' | 'RESULT' | 'PARTIAL' | 'MISS' | null;
+  isOverride: boolean;
+  hasGlobal: boolean;
+  hidden: boolean;
+};
+
+export type PoolMemberPredictionsResponse =
+  | { ok: true; matches: PoolMatchSummary[]; predictions: PoolMemberPredictionCell[] }
+  | { ok: false; error: 'NOT_FOUND' | 'NOT_MEMBER' };
 
 export const poolsApi = {
   async createPool(input: CreatePoolInput): Promise<CreatePoolResponse> {
@@ -145,6 +195,39 @@ export const poolsApi = {
   async getDetail(poolId: string): Promise<PoolDetailResponse> {
     return getBackendApiClient().request<PoolDetailResponse, { poolId: string }>({
       capability: 'pools.getDetail',
+      body: { poolId },
+    });
+  },
+
+  async createDirectedInvite(input: { poolId: string; target: string }): Promise<CreateDirectedInviteResponse> {
+    return getBackendApiClient().request<CreateDirectedInviteResponse, typeof input>({
+      capability: 'pools.createDirectedInvite',
+      body: input,
+    });
+  },
+
+  async getMyPoolsForPicker(): Promise<PoolPickerEntry[]> {
+    return getBackendApiClient().request<PoolPickerEntry[]>({
+      capability: 'pools.getMyPoolsForPicker',
+    });
+  },
+
+  async transferOwnership(input: { poolId: string; newOwnerId: string }): Promise<TransferOwnershipResponse> {
+    return getBackendApiClient().request<TransferOwnershipResponse, typeof input>({
+      capability: 'pools.transferOwnership',
+      body: input,
+    });
+  },
+
+  async getOwnedPoolsForDeletion(): Promise<OwnedPoolTransferDTO[]> {
+    return getBackendApiClient().request<OwnedPoolTransferDTO[]>({
+      capability: 'pools.getOwnedPoolsForDeletion',
+    });
+  },
+
+  async getMemberPredictions(poolId: string): Promise<PoolMemberPredictionsResponse> {
+    return getBackendApiClient().request<PoolMemberPredictionsResponse, { poolId: string }>({
+      capability: 'pools.getMemberPredictions',
       body: { poolId },
     });
   },

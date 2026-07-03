@@ -47,11 +47,18 @@ export function OnboardingWizardProvider({ children, notificationsOptIn }: Onboa
       setCompletionError('Something went wrong finishing setup. Please try again.');
       return;
     }
-    // Forces a fresh `getSession()` read so `onSessionChange` fires with the
-    // now-updated `onboarding_completed` claim promptly (Bolt 1's existing
-    // pipeline, ADR-002) — `AuthGatedNavigator` re-evaluates the guard from
-    // there; this provider does not touch the Zustand store directly.
-    await getSupabaseAdapter().getSession();
+    // Forces a real token refresh (not just a cached-token `getSession()`
+    // read) so the Custom Access Token Hook re-stamps the now-updated
+    // `onboarding_completed` claim and `onAuthStateChange` fires with it
+    // (Bolt 1's existing pipeline, ADR-002) — `onSessionChange` picks that
+    // event up and calls `setSession` itself; `AuthGatedNavigator` then
+    // re-evaluates the guard from there. This provider never touches the
+    // Zustand store directly. A plain `getSession()` does NOT work here:
+    // it only decodes whatever token is already cached and never emits an
+    // auth-state event, so the guard would keep reading the stale claim
+    // forever (confirmed by inspecting the cached JWT directly — it still
+    // carried `onboarding_completed: false` after completion).
+    await getSupabaseAdapter().refreshSession();
   }, [notificationsOptIn, wizard.stepStatus]);
 
   const value = useMemo<OnboardingWizardContextValue>(

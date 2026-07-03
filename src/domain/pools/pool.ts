@@ -40,3 +40,11 @@ export type PoolMember = {
 };
 
 export type PoolSummary = Pool & { viewerMembership: PoolMembership | null };
+
+/**
+ * Bolt 8 — the lean shape `pools.getMyPoolsForPicker` returns for the
+ * predictions screen's pool-override picker (design.md §1.3/§3): a name
+ * a user can recognize, nothing else. Deliberately not `PoolSummary`/
+ * `Pool` — the picker never needs capacity/inviteToken/ownerId/etc.
+ */
+export type PoolPickerEntry = { id: string; name: string };

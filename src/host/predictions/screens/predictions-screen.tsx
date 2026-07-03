@@ -5,6 +5,9 @@ import { PredictionsFixtureList } from '@/host/predictions/components/prediction
 import {
   useKnockoutPhaseIdsQuery,
   useMatchesWithMyPredictions,
+  usePoolOverridesByMatch,
+  usePoolsForPickerQuery,
+  useResetOverrideMutation,
   useSavePredictionMutation,
 } from '@/host/predictions/hooks/use-predictions-query';
 import type { SavePredictionInput } from '@/platform/backend-api/predictions-api';
@@ -51,6 +54,25 @@ export function PredictionsScreen() {
     [saveMutation],
   );
 
+  // Bolt 8 (PREDICTIONS-3/4, design.md §5) — the pool-override picker's
+  // data and the reset-override mutation.
+  const poolsForPickerQuery = usePoolsForPickerQuery();
+  const pools = poolsForPickerQuery.data ?? [];
+  const poolOverridesByMatch = usePoolOverridesByMatch();
+
+  const resetMutation = useResetOverrideMutation();
+  const [resettingKey, setResettingKey] = useState<string | null>(null);
+
+  const handleResetOverride = useCallback(
+    (input: { matchId: string; poolId: string }) => {
+      setResettingKey(`${input.matchId}:${input.poolId}`);
+      resetMutation.mutate(input, {
+        onSettled: () => setResettingKey(null),
+      });
+    },
+    [resetMutation],
+  );
+
   if (error) {
     return (
       <View style={styles.centered}>
@@ -75,6 +97,10 @@ export function PredictionsScreen() {
       onTogglePastMatches={togglePastMatches}
       onSave={handleSave}
       savingMatchId={savingMatchId}
+      pools={pools}
+      poolOverridesByMatch={poolOverridesByMatch}
+      onResetOverride={handleResetOverride}
+      resettingKey={resettingKey}
     />
   );
 }

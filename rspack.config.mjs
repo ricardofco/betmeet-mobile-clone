@@ -105,5 +105,15 @@ function sharedDeps(pkg, { eager }) {
     'react-native-screens': dep('react-native-screens'),
     '@shopify/flash-list': dep('@shopify/flash-list'),
     '@tanstack/react-query': dep('@tanstack/react-query'),
+    // Bolt 8: `pools`' predictions grid pulls in `src/shared/competition`'s
+    // flag/team badges, the first time that shared-code path is required
+    // from a second bundle. Without `singleton: true` here, the remote
+    // registers its own copy of react-native-svg's Fabric native components
+    // (RNSVGCircle etc.) alongside the host's already-registered copy —
+    // Fabric's native component registry is process-global, not
+    // bundle-scoped, so the second registration throws
+    // "Tried to register two views with the same name" and crashes the
+    // remote's module evaluation before it can export `./App`.
+    'react-native-svg': dep('react-native-svg'),
   };
 }

@@ -95,4 +95,14 @@ describe('AccountSettingsScreen', () => {
     await user.press(screen.getByText('Enable two-factor authentication'));
     expect(navigate).toHaveBeenCalledWith('TotpEnrollment');
   });
+
+  it('navigates to DeleteAccount when that row is pressed (Bolt 8, AUTH-6)', async () => {
+    const navigate = jest.fn();
+    const user = userEvent.setup();
+    await renderWithQueryClient(<AccountSettingsScreen {...buildProps(navigate)} />);
+    await screen.findByText('astro#1234');
+
+    await user.press(screen.getByText('Delete account'));
+    expect(navigate).toHaveBeenCalledWith('DeleteAccount');
+  });
 });

@@ -12,7 +12,7 @@ jest.mock('@/platform/supabase/supabase-adapter', () => ({
 }));
 
 const mockedProfileApi = profileApi as jest.Mocked<typeof profileApi>;
-const mockAdapter = { getSession: jest.fn() };
+const mockAdapter = { refreshSession: jest.fn() };
 
 /**
  * model.md §2.8, design.md §5.1: `completeWizard()` is the wizard's sole
@@ -49,7 +49,7 @@ describe('OnboardingWizardProvider (model.md §2.8)', () => {
 
   it('completeWizard() calls profile.completeOnboarding and then re-fetches the session on success', async () => {
     mockedProfileApi.completeOnboarding.mockResolvedValue({ ok: true });
-    mockAdapter.getSession.mockResolvedValue(null);
+    mockAdapter.refreshSession.mockResolvedValue(null);
     const { result } = await renderWizard();
 
     await act(async () => {
@@ -57,13 +57,13 @@ describe('OnboardingWizardProvider (model.md §2.8)', () => {
     });
 
     expect(mockedProfileApi.completeOnboarding).toHaveBeenCalledWith(false);
-    expect(mockAdapter.getSession).toHaveBeenCalled();
+    expect(mockAdapter.refreshSession).toHaveBeenCalled();
     expect(result.current.completionError).toBeNull();
   });
 
   it('passes notificationsOptIn explicitly when provided, overriding the notifications step status', async () => {
     mockedProfileApi.completeOnboarding.mockResolvedValue({ ok: true });
-    mockAdapter.getSession.mockResolvedValue(null);
+    mockAdapter.refreshSession.mockResolvedValue(null);
     const { result } = await renderWizard(true);
 
     await act(async () => {
@@ -75,7 +75,7 @@ describe('OnboardingWizardProvider (model.md §2.8)', () => {
 
   it('defaults notificationsOptIn to whether the notifications step resolved to "done"', async () => {
     mockedProfileApi.completeOnboarding.mockResolvedValue({ ok: true });
-    mockAdapter.getSession.mockResolvedValue(null);
+    mockAdapter.refreshSession.mockResolvedValue(null);
     const { result } = await renderWizard();
 
     await act(() => {
@@ -97,6 +97,6 @@ describe('OnboardingWizardProvider (model.md §2.8)', () => {
     });
 
     expect(result.current.completionError).toBe('Something went wrong finishing setup. Please try again.');
-    expect(mockAdapter.getSession).not.toHaveBeenCalled();
+    expect(mockAdapter.refreshSession).not.toHaveBeenCalled();
   });
 });

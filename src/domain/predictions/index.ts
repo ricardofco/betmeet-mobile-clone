@@ -21,3 +21,6 @@ export type { MyPrediction, MatchWithMyPrediction } from '@/domain/predictions/p
 
 export type { ScoreDisplayInput } from '@/domain/predictions/prediction-score-display';
 export { canShowScoreBreakdown, buildScoreBreakdown } from '@/domain/predictions/prediction-score-display';
+
+export type { ExistingPredictionsForMatch } from '@/domain/predictions/pool-override';
+export { shouldOfferDualSave } from '@/domain/predictions/pool-override';

@@ -8,7 +8,13 @@ import {
   validateScoreBounds,
 } from '../services/prediction-eligibility';
 import { generateUniqueInviteToken } from '../services/pool-invite-token';
-import { canKick, canLeave, isOwner } from '../services/pool-permissions';
+import { canKick, canLeave, canInvite, isOwner, isValidTransferTarget } from '../services/pool-permissions';
+import { resolveInviteTarget } from '../services/directed-invite';
+import {
+  getOwnedPoolsForDeletion as loadOwnedPoolsForDeletion,
+  transferSinglePoolOwnership,
+  transferOwnedPoolsForAccountDeletion,
+} from '../services/account-deletion';
 import type { AuthedRequest } from '../middleware/auth';
 
 type Auth = AuthedRequest['auth'];
@@ -307,15 +313,52 @@ const getMyPredictions: Handler = async (auth) => {
   }));
 };
 
+type PredictionWriteData = { homeScore: number; awayScore: number; penaltyWinnerTeamId: string | null };
+
+/**
+ * Bolt 8 (PREDICTIONS-3, design.md §3.1/ADR-039) — one-scope upsert, used
+ * both for the regular single-row save and, twice, inside the dual-save
+ * transaction below. `db` is `prisma` for the regular path or a
+ * `Prisma.TransactionClient` for the dual-save path — both share the same
+ * query-builder shape. Preserves Bolt 6's existing behavior exactly: a
+ * previously-locked row is rejected (`LOCKED`), never silently unlocked.
+ */
+async function upsertPredictionForScope(
+  db: typeof prisma,
+  userId: string,
+  matchId: string,
+  poolId: string | null,
+  data: PredictionWriteData,
+): Promise<{ ok: true; prediction: Awaited<ReturnType<typeof prisma.prediction.create>> } | { ok: false; error: 'LOCKED' }> {
+  const existing = await db.prediction.findFirst({ where: { userId, matchId, poolId } });
+  if (existing?.lockedAt) {
+    return { ok: false, error: 'LOCKED' };
+  }
+  const saved = existing
+    ? await db.prediction.update({ where: { id: existing.id }, data })
+    : await db.prediction.create({ data: { userId, matchId, poolId, ...data } });
+  return { ok: true, prediction: saved };
+}
+
 const save: Handler = async (auth, body) => {
   const matchId = String(body?.matchId ?? '');
   const poolId: string | null = body?.poolId ?? null;
   const homeScore = Number(body?.homeScore);
   const awayScore = Number(body?.awayScore);
   const penaltyWinner = (body?.penaltyWinner ?? null) as 'home' | 'away' | null;
+  const alsoSaveAsGlobal = body?.alsoSaveAsGlobal === true;
 
   if (!validateScoreBounds(homeScore, awayScore)) {
     return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+
+  // Bolt 8 (design.md §3.1): a pool-scoped save requires real membership in
+  // that pool — never trusted to whatever pool-picker list the client showed.
+  if (poolId) {
+    const membership = await prisma.poolMembership.findUnique({
+      where: { poolId_userId: { poolId, userId: auth.userId } },
+    });
+    if (!membership) return { ok: false, error: 'NOT_MEMBER' as const };
   }
 
   const match = await prisma.match.findUnique({ where: { id: matchId }, include: { phase: true } });
@@ -335,34 +378,71 @@ const save: Handler = async (auth, body) => {
 
   const penaltyWinnerTeamId =
     penaltyWinner === 'home' ? match.homeTeamId : penaltyWinner === 'away' ? match.awayTeamId : null;
+  const data: PredictionWriteData = { homeScore, awayScore, penaltyWinnerTeamId };
 
-  const existing = await prisma.prediction.findFirst({
-    where: { userId: auth.userId, matchId, poolId },
-  });
-  if (existing?.lockedAt) {
-    return { ok: false, error: 'LOCKED' as const };
+  if (alsoSaveAsGlobal && poolId) {
+    // Dual-save (PREDICTIONS-3, ADR-039): the global row and the pool
+    // override row are written together, all-or-nothing. If either scope's
+    // existing row is locked, the whole transaction is rolled back — no
+    // partial write, matching betmeet-clone's real comment on this exact
+    // flow: "todo o nada."
+    try {
+      const overrideSaved = await prisma.$transaction(async tx => {
+        const globalResult = await upsertPredictionForScope(tx as typeof prisma, auth.userId, matchId, null, data);
+        if (!globalResult.ok) throw new Error('LOCKED');
+        const overrideResult = await upsertPredictionForScope(tx as typeof prisma, auth.userId, matchId, poolId, data);
+        if (!overrideResult.ok) throw new Error('LOCKED');
+        return overrideResult.prediction;
+      });
+      return {
+        ok: true,
+        prediction: {
+          id: overrideSaved.id,
+          matchId: overrideSaved.matchId,
+          poolId: overrideSaved.poolId,
+          homeScore: overrideSaved.homeScore,
+          awayScore: overrideSaved.awayScore,
+          penaltyWinner,
+        },
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message === 'LOCKED') {
+        return { ok: false, error: 'LOCKED' as const };
+      }
+      throw err;
+    }
   }
 
-  const saved = existing
-    ? await prisma.prediction.update({
-        where: { id: existing.id },
-        data: { homeScore, awayScore, penaltyWinnerTeamId },
-      })
-    : await prisma.prediction.create({
-        data: { userId: auth.userId, matchId, poolId, homeScore, awayScore, penaltyWinnerTeamId },
-      });
+  const result = await upsertPredictionForScope(prisma, auth.userId, matchId, poolId, data);
+  if (!result.ok) return { ok: false, error: result.error };
 
   return {
     ok: true,
     prediction: {
-      id: saved.id,
-      matchId: saved.matchId,
-      poolId: saved.poolId,
-      homeScore: saved.homeScore,
-      awayScore: saved.awayScore,
+      id: result.prediction.id,
+      matchId: result.prediction.matchId,
+      poolId: result.prediction.poolId,
+      homeScore: result.prediction.homeScore,
+      awayScore: result.prediction.awayScore,
       penaltyWinner,
     },
   };
+};
+
+/** PREDICTIONS-4 (design.md §3.1) — idempotent: `deleteMany`, not `delete`,
+ * so a repeat/racing reset is a no-op success, not a NOT_FOUND error. No
+ * kickoff-lock check (model.md §7 — resetting doesn't touch scores). */
+const resetOverride: Handler = async (auth, body) => {
+  const matchId = String(body?.matchId ?? '');
+  const poolId = String(body?.poolId ?? '');
+
+  const membership = await prisma.poolMembership.findUnique({
+    where: { poolId_userId: { poolId, userId: auth.userId } },
+  });
+  if (!membership) return { ok: false, error: 'NOT_MEMBER' as const };
+
+  await prisma.prediction.deleteMany({ where: { userId: auth.userId, matchId, poolId } });
+  return { ok: true };
 };
 
 // ---------------------------------------------------------------------------
@@ -669,8 +749,217 @@ const getPoolDetail: Handler = async (auth, body) => {
   };
 };
 
+// ---------------------------------------------------------------------------
+// pools.* — Bolt 8 additions (POOLS-3/POOLS-7, design.md §3)
+// ---------------------------------------------------------------------------
+
+/** POOLS-3 — directed invites. Reuses createPool's/getPoolDetail's `NOT_FOUND`
+ * convention; permission and self-invite are checked server-side regardless
+ * of what the client's `canInvite` mirror decided to render. */
+const createDirectedInvite: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const target = String(body?.target ?? '').trim();
+  if (target.length < 3 || target.length > 120) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+
+  const membership = await prisma.poolMembership.findUnique({
+    where: { poolId_userId: { poolId, userId: auth.userId } },
+  });
+  if (!membership) return { ok: false, error: 'NOT_MEMBER' as const };
+
+  if (!canInvite(pool, auth.userId)) {
+    return { ok: false, error: 'PERMISSION_DENIED' as const };
+  }
+
+  const resolved = await resolveInviteTarget(target);
+  if (!resolved.invitedUserId && !resolved.invitedEmailHash) {
+    return { ok: false, error: 'UNRESOLVABLE' as const };
+  }
+  if (resolved.invitedUserId === auth.userId) {
+    return { ok: false, error: 'SELF_INVITE' as const };
+  }
+
+  if (resolved.invitedUserId) {
+    // Idempotent re-invite (model.md §2): upsert back to PENDING rather
+    // than erroring or duplicating.
+    await prisma.poolDirectedInvite.upsert({
+      where: { poolId_invitedUserId: { poolId, invitedUserId: resolved.invitedUserId } },
+      update: { status: 'PENDING', inviteToken: pool.inviteToken },
+      create: {
+        poolId,
+        createdByUserId: auth.userId,
+        inviteToken: pool.inviteToken,
+        invitedUserId: resolved.invitedUserId,
+        invitedEmailHash: null,
+      },
+    });
+  } else {
+    await prisma.poolDirectedInvite.create({
+      data: {
+        poolId,
+        createdByUserId: auth.userId,
+        inviteToken: pool.inviteToken,
+        invitedUserId: null,
+        invitedEmailHash: resolved.invitedEmailHash,
+      },
+    });
+  }
+
+  // POOL_INVITE notification queuing intentionally out of scope this bolt
+  // (model.md §2/§10) — Bolt 10 owns notification delivery infrastructure,
+  // which doesn't exist yet.
+  return { ok: true, resolved: resolved.invitedUserId !== null };
+};
+
+/** PREDICTIONS-3's pool-override picker (design.md §1.3/§3) — a lean read,
+ * intentionally not reusing `getMyPools`'s heavier join. */
+const getMyPoolsForPicker: Handler = async auth => {
+  const memberships = await prisma.poolMembership.findMany({
+    where: { userId: auth.userId },
+    include: { pool: { select: { id: true, name: true } } },
+    orderBy: { joinedAt: 'desc' },
+  });
+  return memberships.map(m => ({ id: m.pool.id, name: m.pool.name }));
+};
+
+/** POOLS-7 — standalone, voluntary single-pool ownership transfer
+ * (design.md §3.1/ADR-040). Shares `transferSinglePoolOwnership`'s
+ * reassign-and-drop-membership write shape with `auth.deleteAccount`'s
+ * batch transfer step. */
+const transferOwnership: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+  const newOwnerId = String(body?.newOwnerId ?? '');
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!isOwner(pool, auth.userId)) return { ok: false, error: 'NOT_OWNER' as const };
+
+  const memberIds = (
+    await prisma.poolMembership.findMany({ where: { poolId }, select: { userId: true } })
+  ).map(m => m.userId);
+  if (!isValidTransferTarget(newOwnerId, memberIds, pool.ownerId)) {
+    return { ok: false, error: 'INVALID_TARGET' as const };
+  }
+
+  await transferSinglePoolOwnership(poolId, auth.userId, newOwnerId);
+  return { ok: true };
+};
+
+/** AUTH-6's delete-account confirm modal loader (design.md §3.1). */
+const getOwnedPoolsForDeletion: Handler = async auth => {
+  return loadOwnedPoolsForDeletion(auth.userId);
+};
+
+/** POOLS-6 — the member-prediction grid, with anti-bias masking (design.md
+ * §3.1/§3.2, ADR-038). This is the ONLY capability that ever reads/returns
+ * another member's pool-scoped prediction content — see ADR-038's
+ * permanent instruction before changing this handler. */
+const getMemberPredictions: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+
+  const memberIds = (
+    await prisma.poolMembership.findMany({ where: { poolId }, select: { userId: true } })
+  ).map(m => m.userId);
+  if (!memberIds.includes(auth.userId)) {
+    return { ok: false, error: 'NOT_MEMBER' as const };
+  }
+
+  const [allMatches, rows] = await Promise.all([
+    prisma.match.findMany({
+      include: { homeTeam: true, awayTeam: true },
+      orderBy: { kickoffAt: 'asc' },
+    }),
+    prisma.prediction.findMany({
+      where: { userId: { in: memberIds }, OR: [{ poolId }, { poolId: null }] },
+      include: {
+        match: true,
+        prediction_scores: { select: { total_points: true, matched_case: true } },
+      },
+      orderBy: { match: { kickoffAt: 'asc' } },
+    }),
+  ]);
+
+  const matches = allMatches.map(m => ({
+    matchId: m.id,
+    kickoffAt: m.kickoffAt ? m.kickoffAt.toISOString() : null,
+    matchStatus: m.status,
+    homeTeam: teamSlot(m.homeTeam, m.homePlaceholder),
+    awayTeam: teamSlot(m.awayTeam, m.awayPlaceholder),
+    homeScore: m.homeScore,
+    awayScore: m.awayScore,
+  }));
+
+  const globalPairs = new Set<string>();
+  for (const row of rows) {
+    if (row.poolId === null) globalPairs.add(`${row.userId}::${row.matchId}`);
+  }
+
+  // ADR-038: anti-bias masking, computed here, exclusively, as the last
+  // step before the response object is built. Another member's prediction
+  // for a not-yet-kicked-off match is masked; the viewer's own row never is.
+  const now = Date.now();
+
+  const predictions = rows.map(row => {
+    const started = row.match.kickoffAt != null && row.match.kickoffAt.getTime() <= now;
+    const hidden = row.userId !== auth.userId && !started;
+
+    return {
+      matchId: row.matchId,
+      userId: row.userId,
+      predictedHome: hidden ? null : row.homeScore,
+      predictedAway: hidden ? null : row.awayScore,
+      totalPoints: hidden ? null : (row.prediction_scores?.total_points ?? null),
+      matchedCase: hidden ? null : (row.prediction_scores?.matched_case ?? null),
+      isOverride: hidden ? false : row.poolId === poolId,
+      hasGlobal: !hidden && row.poolId === poolId && globalPairs.has(`${row.userId}::${row.matchId}`),
+      hidden,
+    };
+  });
+
+  return { ok: true, matches, predictions };
+};
+
+// ---------------------------------------------------------------------------
+// auth.* — Bolt 8 addition (AUTH-6, design.md §3.1/ADR-039/ADR-040)
+// ---------------------------------------------------------------------------
+
+const deleteAccount: Handler = async (auth, body) => {
+  const rawAssignments = Array.isArray(body?.poolOwnershipAssignments) ? body.poolOwnershipAssignments : [];
+  const assignments = rawAssignments
+    .filter((a: any) => typeof a?.poolId === 'string' && typeof a?.newOwnerId === 'string')
+    .map((a: any) => ({ poolId: String(a.poolId), newOwnerId: String(a.newOwnerId) }));
+
+  const transfer = await transferOwnedPoolsForAccountDeletion(auth.userId, assignments);
+  if (!transfer.ok) {
+    return { ok: false, error: transfer.error };
+  }
+
+  // Soft-delete the profile: release the nickname (deletedAt isn't part of
+  // the unique index) so it can be reused. Runs before the auth hard-delete,
+  // matching betmeet-clone's own ordering (model.md §4).
+  await prisma.profile.update({
+    where: { id: auth.userId },
+    data: { deletedAt: new Date(), nicknameBase: null, nicknameDiscriminator: null },
+  });
+
+  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(auth.userId);
+  if (deleteError) {
+    return { ok: false, error: 'DELETE_FAILED' as const };
+  }
+
+  return { ok: true };
+};
+
 export const handlers: Record<string, Handler> = {
   'auth.resendConfirmation': resendConfirmation,
+  'auth.deleteAccount': deleteAccount,
   'profile.checkNicknameAvailability': checkNicknameAvailability,
   'profile.assignNickname': assignNickname,
   'profile.changeNickname': changeNickname,
@@ -686,6 +975,7 @@ export const handlers: Record<string, Handler> = {
   'competition.getKnockoutPhaseIds': getKnockoutPhaseIds,
   'predictions.getMyPredictions': getMyPredictions,
   'predictions.save': save,
+  'predictions.resetOverride': resetOverride,
   'pools.create': createPool,
   'pools.rename': renamePool,
   'pools.delete': deletePool,
@@ -699,4 +989,9 @@ export const handlers: Record<string, Handler> = {
   'pools.getMine': getMyPools,
   'pools.listPublic': listPublicPools,
   'pools.getDetail': getPoolDetail,
+  'pools.createDirectedInvite': createDirectedInvite,
+  'pools.getMyPoolsForPicker': getMyPoolsForPicker,
+  'pools.transferOwnership': transferOwnership,
+  'pools.getOwnedPoolsForDeletion': getOwnedPoolsForDeletion,
+  'pools.getMemberPredictions': getMemberPredictions,
 };

@@ -107,6 +107,16 @@ export interface MfaProvider {
 export interface SupabaseAdapter {
   // ── Bolt 1 ──
   getSession(): Promise<AuthSession | null>;
+  /**
+   * Forces the SDK to request a brand-new access token from Supabase (not a
+   * cached-token read like `getSession()`), which re-runs the Custom Access
+   * Token Hook server-side and picks up any claim change that was made
+   * out-of-band via our own backend (e.g. `profile.completeOnboarding`).
+   * This also fires `onAuthStateChange` (`TOKEN_REFRESHED`), so the
+   * `onSessionChange` pipeline updates the store from this alone — callers
+   * do not need to do anything with the resolved promise.
+   */
+  refreshSession(): Promise<void>;
   /** Returns an unsubscribe function. */
   onSessionChange(listener: (session: AuthSession | null) => void): () => void;
   signUp(email: string, password: string): Promise<SignUpResult>;
@@ -188,6 +198,7 @@ class SupabaseAdapterImpl implements SupabaseAdapter {
 
   async getSession(): Promise<AuthSession | null> {
     const { data: sessionData } = await this.client.auth.getSession();
+
     if (!sessionData.session) return null;
 
     const { data: claimsData } = await this.client.auth.getClaims();
@@ -197,11 +208,16 @@ class SupabaseAdapterImpl implements SupabaseAdapter {
       ? { current: aalData.currentLevel as 'aal1' | 'aal2', next: aalData.nextLevel as 'aal1' | 'aal2' }
       : null;
 
-    return {
+    const result = {
       claims: toAuthClaims(claimsData?.claims as Record<string, unknown> | undefined, aal),
       accessToken: sessionData.session.access_token,
       refreshToken: sessionData.session.refresh_token,
     };
+    return result;
+  }
+
+  async refreshSession(): Promise<void> {
+    await this.client.auth.refreshSession();
   }
 
   onSessionChange(listener: (session: AuthSession | null) => void): () => void {
@@ -221,7 +237,7 @@ class SupabaseAdapterImpl implements SupabaseAdapter {
           .then(p => {
             listener(p);
           })
-          .catch(error => {
+          .catch(() => {
             // A failure restoring/decoding the session (stale token, keychain
             // issue, transient network error) must not leave the store stuck
             // on `status: 'loading'` forever — fail closed to unauthenticated

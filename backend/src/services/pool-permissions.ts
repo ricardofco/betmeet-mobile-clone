@@ -13,6 +13,7 @@
 export type PoolForPermission = {
   ownerId: string;
   type: 'PUBLIC' | 'PRIVATE';
+  membersCanInvite?: boolean;
 };
 
 export function isOwner(pool: PoolForPermission, userId: string): boolean {
@@ -25,4 +26,25 @@ export function canLeave(pool: PoolForPermission, userId: string): boolean {
 
 export function canKick(pool: PoolForPermission, viewerId: string, targetUserId: string): boolean {
   return isOwner(pool, viewerId) && targetUserId !== pool.ownerId;
+}
+
+/**
+ * Bolt 8 (POOLS-3, design.md §3.1) — the real, authoritative twin of
+ * mobile's advisory `src/domain/pools/invite-permission.ts#canInvite`.
+ * Owner always allowed; PUBLIC-pool member always allowed (no toggle);
+ * PRIVATE-pool non-owner member allowed only if `membersCanInvite`.
+ */
+export function canInvite(pool: PoolForPermission, userId: string): boolean {
+  if (isOwner(pool, userId)) return true;
+  if (pool.type === 'PUBLIC') return true;
+  return pool.membersCanInvite === true;
+}
+
+/**
+ * Bolt 8 (POOLS-7, design.md §3.1) — a valid ownership-transfer target is
+ * a current member who is not already the owner.
+ */
+export function isValidTransferTarget(newOwnerId: string, memberUserIds: string[], ownerId: string): boolean {
+  if (newOwnerId === ownerId) return false;
+  return memberUserIds.includes(newOwnerId);
 }

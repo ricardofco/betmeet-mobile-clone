@@ -1,4 +1,4 @@
-export type { PoolVisibility, Pool, PoolMembership, PoolMember, PoolSummary } from '@/domain/pools/pool';
+export type { PoolVisibility, Pool, PoolMembership, PoolMember, PoolSummary, PoolPickerEntry } from '@/domain/pools/pool';
 
 export { MIN_POOL_CAPACITY, MAX_POOL_CAPACITY, validatePoolCapacity, hasCapacityFor } from '@/domain/pools/pool-capacity';
 
@@ -27,3 +27,12 @@ export {
 } from '@/domain/pools/pool-membership-permissions';
 
 export { isVisibilityChangeNoOp, requiresNameUniquenessCheck } from '@/domain/pools/pool-visibility';
+
+export type { ParsedInviteTarget } from '@/domain/pools/directed-invite-target';
+export { parseInviteTarget, isPlausibleInviteTarget } from '@/domain/pools/directed-invite-target';
+
+export type { MemberForTransfer } from '@/domain/pools/ownership-transfer';
+export { isValidTransferTarget, transferCandidates } from '@/domain/pools/ownership-transfer';
+
+export type { MatchForVisibility } from '@/domain/pools/predictions-visibility';
+export { isMemberPredictionVisible } from '@/domain/pools/predictions-visibility';

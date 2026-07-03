@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "start:education": "react-native start --config rspack.config.education-remote.mjs --port 8082",
+    "start:pools": "react-native start --config rspack.config.pools-remote.mjs --port 8083",
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },

@@ -10,6 +10,7 @@ import {
 } from '@/remotes/pools/hooks/use-pools-query';
 import { PoolMemberRow } from '@/remotes/pools/components/pool-member-row';
 import { InviteTokenPanel } from '@/remotes/pools/components/invite-token-panel';
+import { DirectedInviteForm } from '@/remotes/pools/components/directed-invite-form';
 import { canDelete, canKick, canLeave } from '@/domain/pools';
 import type { PoolsStackParamList } from '@/remotes/pools/navigation/pools-stack-params';
 import type { PoolMember } from '@/domain/pools';
@@ -50,6 +51,10 @@ export function PoolDetailScreen({ route, navigation }: Props) {
 
   const handleOpenSettings = useCallback(() => {
     navigation.navigate('PoolSettings', { poolId });
+  }, [navigation, poolId]);
+
+  const handleOpenPredictions = useCallback(() => {
+    navigation.navigate('PoolPredictions', { poolId });
   }, [navigation, poolId]);
 
   const viewerId = detail?.ok ? detail.viewerMembership?.userId ?? null : null;
@@ -102,9 +107,14 @@ export function PoolDetailScreen({ route, navigation }: Props) {
         />
       ) : null}
 
+      {viewerId ? (
+        <DirectedInviteForm poolId={poolId} pool={detail.pool} viewerIsOwner={isViewerOwner} />
+      ) : null}
+
       <FlashList data={members} renderItem={renderItem} keyExtractor={keyExtractor} />
 
       <View style={styles.actions}>
+        {viewerId ? <Button title="Predictions" onPress={handleOpenPredictions} /> : null}
         {isViewerOwner && canDelete(detail.pool, viewerId ?? '') ? (
           <Button title="Pool settings" onPress={handleOpenSettings} />
         ) : null}

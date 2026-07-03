@@ -49,14 +49,11 @@ export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
   const hasEjectedRef = useRef(false);
 
   useEffect(() => {
-    const unsubscribe = getSupabaseAdapter().onSessionChange( (x)=> {
-      console.log('xxxxxonSessionChange', x)
-      setSession(x)
+    const unsubscribe = getSupabaseAdapter().onSessionChange(session => {
+      setSession(session);
     });
     return unsubscribe;
   }, [setSession]);
-
-  console.log("status", status)
 
   if (status === 'loading') {
     return (

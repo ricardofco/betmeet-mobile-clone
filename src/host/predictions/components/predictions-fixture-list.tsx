@@ -4,12 +4,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FixtureDaySectionHeader } from '@/shared/competition';
 import { PredictionMatchCard } from '@/host/predictions/components/prediction-match-card';
 import { buildFixtureView, type FixtureView } from '@/domain/competition';
-import type { MatchWithMyPrediction } from '@/domain/predictions';
+import type { MatchWithMyPrediction, MyPrediction } from '@/domain/predictions';
+import type { PoolPickerEntry } from '@/domain/pools';
 import type { SavePredictionInput } from '@/platform/backend-api/predictions-api';
 
 type PredictionsFixtureListRow =
   | { kind: 'header'; calendarDate: string }
   | { kind: 'match'; row: MatchWithMyPrediction };
+
+// A single stable empty-array reference so `poolOverridesByMatch.get(...)
+// ?? EMPTY_POOL_OVERRIDES` never creates a new array identity per render
+// (would otherwise defeat `PredictionMatchCard`'s `React.memo`).
+const EMPTY_POOL_OVERRIDES: MyPrediction[] = [];
 
 type PredictionsFixtureListProps = {
   rows: MatchWithMyPrediction[];
@@ -18,6 +24,11 @@ type PredictionsFixtureListProps = {
   onTogglePastMatches: () => void;
   onSave: (input: SavePredictionInput) => void;
   savingMatchId: string | null;
+  /** Bolt 8 (PREDICTIONS-3/4) — see `PredictionMatchCard`'s own doc comment. */
+  pools: PoolPickerEntry[];
+  poolOverridesByMatch: Map<string, MyPrediction[]>;
+  onResetOverride: (input: { matchId: string; poolId: string }) => void;
+  resettingKey: string | null;
 };
 
 /**
@@ -40,6 +51,10 @@ export function PredictionsFixtureList({
   onTogglePastMatches,
   onSave,
   savingMatchId,
+  pools,
+  poolOverridesByMatch,
+  onResetOverride,
+  resettingKey,
 }: PredictionsFixtureListProps) {
   const view: FixtureView = useMemo(
     () => buildFixtureView(rows.map(r => r.match), now),
@@ -72,16 +87,21 @@ export function PredictionsFixtureList({
       if (item.kind === 'header') {
         return <FixtureDaySectionHeader calendarDate={item.calendarDate} />;
       }
+      const matchId = item.row.match.id;
       return (
         <PredictionMatchCard
           row={item.row}
           now={now}
           onSave={onSave}
-          isSaving={savingMatchId === item.row.match.id}
+          isSaving={savingMatchId === matchId}
+          pools={pools}
+          poolOverrides={poolOverridesByMatch.get(matchId) ?? EMPTY_POOL_OVERRIDES}
+          onResetOverride={onResetOverride}
+          isResettingOverride={resettingKey?.startsWith(`${matchId}:`) ?? false}
         />
       );
     },
-    [now, onSave, savingMatchId],
+    [now, onSave, savingMatchId, pools, poolOverridesByMatch, onResetOverride, resettingKey],
   );
 
   const keyExtractor = useCallback((item: PredictionsFixtureListRow, index: number) => {

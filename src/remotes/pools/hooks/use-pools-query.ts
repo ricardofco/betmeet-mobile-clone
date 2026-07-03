@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   poolsApi,
+  type CreateDirectedInviteResponse,
   type CreatePoolInput,
   type CreatePoolResponse,
   type DeletePoolResponse,
@@ -10,6 +11,7 @@ import {
   type PoolDetailResponse,
   type RenamePoolResponse,
   type SetArchivedResponse,
+  type TransferOwnershipResponse,
   type UpdateMembersCanInviteResponse,
   type UpdateVisibilityResponse,
 } from '@/platform/backend-api/pools-api';
@@ -170,6 +172,28 @@ export function useSetArchivedMutation() {
     mutationFn: input => poolsApi.setArchived(input),
     onSuccess: response => {
       if (response.ok) invalidateMine();
+    },
+  });
+}
+
+/** POOLS-3 (design.md §3/§8). No query is invalidated on success — this
+ * bolt's scope has no client-visible "pending invites" list (model.md §2). */
+export function useCreateDirectedInviteMutation() {
+  return useMutation<CreateDirectedInviteResponse, unknown, { poolId: string; target: string }>({
+    mutationFn: input => poolsApi.createDirectedInvite(input),
+  });
+}
+
+/** POOLS-7 (design.md §3/§8/ADR-040) — the standalone, voluntary transfer. */
+export function useTransferOwnershipMutation() {
+  const { invalidateMine, invalidateDetail } = useInvalidatePools();
+  return useMutation<TransferOwnershipResponse, unknown, { poolId: string; newOwnerId: string }>({
+    mutationFn: input => poolsApi.transferOwnership(input),
+    onSuccess: (response, variables) => {
+      if (response.ok) {
+        invalidateMine();
+        invalidateDetail(variables.poolId);
+      }
     },
   });
 }

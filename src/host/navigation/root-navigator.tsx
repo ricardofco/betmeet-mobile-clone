@@ -12,6 +12,7 @@ import { TotpEnrollmentScreen } from '@/host/settings/screens/totp-enrollment-sc
 import { ChangeNicknameScreen } from '@/host/profile/screens/change-nickname-screen';
 import { ChangeAvatarScreen } from '@/host/profile/screens/change-avatar-screen';
 import { ChangeLocaleScreen } from '@/host/profile/screens/change-locale-screen';
+import { DeleteAccountScreen } from '@/host/settings/screens/delete-account-screen';
 import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { parseDeepLink } from '@/domain/auth/parse-deep-link';
@@ -87,6 +88,11 @@ function SettingsStackNavigator() {
         component={TotpEnrollmentScreen}
         options={{ title: 'Two-factor authentication' }}
       />
+      <SettingsStack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
+        options={{ title: 'Delete account' }}
+      />
     </SettingsStack.Navigator>
   );
 }
@@ -112,11 +118,16 @@ function HomeScreen({ navigation }: HomeScreenProps) {
     navigation.navigate('Pools');
   }, [navigation]);
 
+  const handleGoToSettings = useCallback(() => {
+    navigation.navigate('Settings');
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Liga Mundial</Text>
       <Button title="Predictions" onPress={handleGoToPredictions} />
       <Button title="Pools" onPress={handleGoToPools} />
+      <Button title="Settings" onPress={handleGoToSettings} />
       <Text style={styles.subtitle}>
         Host bundle is running. Tap below to load the federated `education` remote.
       </Text>

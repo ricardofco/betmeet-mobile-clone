@@ -4,6 +4,7 @@
  * without updating import paths across the codebase.
  */
 
+export * from '@/domain/auth/account-deletion';
 export * from '@/domain/auth/auth-claims';
 export * from '@/domain/auth/auth-guard';
 export * from '@/domain/auth/parse-deep-link';

@@ -5,6 +5,7 @@ import { CreatePoolScreen } from '@/remotes/pools/screens/create-pool-screen';
 import { JoinByTokenScreen } from '@/remotes/pools/screens/join-by-token-screen';
 import { PoolDetailScreen } from '@/remotes/pools/screens/pool-detail-screen';
 import { PoolSettingsScreen } from '@/remotes/pools/screens/pool-settings-screen';
+import { PoolPredictionsScreen } from '@/remotes/pools/screens/pool-predictions-screen';
 import type { PoolsStackParamList } from '@/remotes/pools/navigation/pools-stack-params';
 
 const PoolsStack = createNativeStackNavigator<PoolsStackParamList>();
@@ -37,6 +38,11 @@ export default function PoolsRemoteEntry() {
         name="PoolSettings"
         component={PoolSettingsScreen}
         options={{ title: 'Pool settings' }}
+      />
+      <PoolsStack.Screen
+        name="PoolPredictions"
+        component={PoolPredictionsScreen}
+        options={{ title: 'Predictions' }}
       />
     </PoolsStack.Navigator>
   );

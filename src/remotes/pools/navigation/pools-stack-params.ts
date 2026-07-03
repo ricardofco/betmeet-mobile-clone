@@ -11,4 +11,6 @@ export type PoolsStackParamList = {
   JoinByToken: undefined;
   PoolDetail: { poolId: string };
   PoolSettings: { poolId: string };
+  /** Bolt 8 (POOLS-6, design.md §7) — the member-prediction grid. */
+  PoolPredictions: { poolId: string };
 };

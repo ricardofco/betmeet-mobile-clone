@@ -60,6 +60,8 @@ export const SCREEN_REGISTRY = {
   ChangePassword: ['protected'] as ScreenClass,
   ChangeEmail: ['protected'] as ScreenClass,
   TotpEnrollment: ['protected'] as ScreenClass,
+  /** Bolt 8 (AUTH-6) — same `protected` tag as every other Settings row. */
+  DeleteAccount: ['protected'] as ScreenClass,
 } as const;
 
 export type RegisteredRouteName = keyof typeof SCREEN_REGISTRY;

@@ -33,11 +33,12 @@ export const useAuthSessionStore = create<AuthSessionStoreState>(set => ({
   claims: UNAUTHENTICATED_CLAIMS,
   pendingDestination: null,
   mfaFactorId: null,
-  setSession: session =>
+  setSession: session => {
     set({
       status: 'ready',
       claims: session ? session.claims : UNAUTHENTICATED_CLAIMS,
-    }),
+    });
+  },
   setPendingDestination: destination => set({ pendingDestination: destination }),
   setMfaFactorId: id => set({ mfaFactorId: id }),
 }));

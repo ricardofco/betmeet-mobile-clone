@@ -16,7 +16,6 @@ const SERVICE_PREFIX = 'betmeet.supabase.';
 export const keychainSessionStorage = {
   async getItem(key: string): Promise<string | null> {
     const result = await Keychain.getGenericPassword({ service: SERVICE_PREFIX + key });
-    console.log('result', result)
     if (!result) return null;
     return result.password;
   },
