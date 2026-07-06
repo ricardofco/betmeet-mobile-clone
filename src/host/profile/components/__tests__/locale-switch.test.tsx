@@ -4,6 +4,7 @@ import { useLocaleStore } from '@/host/profile/locale-store';
 import { profileApi } from '@/platform/backend-api/profile-api';
 import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { DEFAULT_LOCALE } from '@/domain/profile/locale';
+import { i18n } from '@/platform/i18n/i18n';
 
 jest.mock('@/platform/backend-api/profile-api');
 
@@ -40,5 +41,18 @@ describe('LocaleSwitch (PROFILE-3, ADR-012)', () => {
     await user.press(await screen.findByRole('radio', { name: 'English' }));
 
     expect(mockedProfileApi.setLocale).toHaveBeenCalledWith('en');
+  });
+
+  it('selecting a locale also switches the rendered UI language (ADR-041/044 unification, confirmed)', async () => {
+    const user = userEvent.setup();
+    await renderWithQueryClient(<LocaleSwitch />);
+    // `renderWithQueryClient` defaults `i18n.language` to 'en' for test
+    // determinism — press "Español" instead, to prove a real transition
+    // rather than an already-true assertion.
+    expect(i18n.language).toBe('en');
+
+    await user.press(await screen.findByRole('radio', { name: 'Español' }));
+
+    expect(i18n.language).toBe('es');
   });
 });

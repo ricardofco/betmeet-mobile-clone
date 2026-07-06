@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useCompetitionStore, useLiveCompetitionSubscription } from '@/shared/competition';
 import { PredictionsFixtureList } from '@/host/predictions/components/predictions-fixture-list';
 import {
@@ -11,6 +11,7 @@ import {
   useSavePredictionMutation,
 } from '@/host/predictions/hooks/use-predictions-query';
 import type { SavePredictionInput } from '@/platform/backend-api/predictions-api';
+import { ErrorState, LoadingState } from '@/shared/design/primitives';
 
 /**
  * PREDICTIONS-1/2/5's entry screen — the highest-traffic screen in the app
@@ -26,6 +27,7 @@ import type { SavePredictionInput } from '@/platform/backend-api/predictions-api
  * cascade from typing — see ADR-025/design.md §5).
  */
 export function PredictionsScreen() {
+  const { t } = useTranslation();
   const [now] = useState(() => new Date().toISOString());
 
   const knockoutPhaseIdsQuery = useKnockoutPhaseIdsQuery();
@@ -74,19 +76,11 @@ export function PredictionsScreen() {
   );
 
   if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn&apos;t load fixtures. Pull to retry.</Text>
-      </View>
-    );
+    return <ErrorState label={t('predictions.error')} />;
   }
 
   if (isLoading || !rows) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <LoadingState label={t('predictions.loading')} />;
   }
 
   return (
@@ -104,15 +98,3 @@ export function PredictionsScreen() {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#DC2626',
-  },
-});

@@ -1,9 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
+import { I18nextProvider } from 'react-i18next';
+import { TamaguiProvider } from 'tamagui';
 import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
 import { predictionsApi } from '@/platform/backend-api/predictions-api';
 import { competitionApi } from '@/platform/backend-api/competition-api';
+import { i18n } from '@/platform/i18n/i18n';
+import tamaguiConfig from '../../../../../tamagui.config';
 import type { Match } from '@/domain/competition';
 
 jest.mock('@/platform/backend-api/predictions-api');
@@ -46,14 +50,25 @@ function createWrapper() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+        <I18nextProvider i18n={i18n}>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </I18nextProvider>
+      </TamaguiProvider>
+    );
   }
   return Wrapper;
 }
 
 describe('PredictionsScreen (PREDICTIONS-1/2/5 entry screen, design.md §4)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    // `i18n`'s own default is `'es'` (`DEFAULT_LOCALE`, ADR-012) — normally
+    // corrected by `AppProviders`' boot effect, which this isolated screen
+    // test never mounts. Force `'en'` so this file's English-string
+    // assertions stay deterministic.
+    await i18n.changeLanguage('en');
   });
 
   it('shows a loading indicator while fixture/prediction/phase queries are in flight', async () => {

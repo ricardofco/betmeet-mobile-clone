@@ -1,11 +1,13 @@
 import { useCallback } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { YStack } from 'tamagui';
 import { useMyPoolsQuery } from '@/remotes/pools/hooks/use-pools-query';
 import { PoolListItem } from '@/remotes/pools/components/pool-list-item';
 import type { PoolsStackParamList } from '@/remotes/pools/navigation/pools-stack-params';
 import type { PoolSummary } from '@/domain/pools';
+import { Card, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/shared/design/primitives';
 
 type Props = NativeStackScreenProps<PoolsStackParamList, 'MyPools'>;
 
@@ -14,8 +16,19 @@ type Props = NativeStackScreenProps<PoolsStackParamList, 'MyPools'>;
  * viewer belongs to, plus navigation into create/discover/join-by-token
  * (design.md §3). `@shopify/flash-list` per ADR-034 — first remote-side
  * FlashList consumer, requires the shared-singleton MF config addition.
+ *
+ * Bolt 9 (ADR-043): the chrome (action buttons, loading/empty/error states)
+ * is retrofitted with `i18next` + Tamagui primitives — the first real
+ * cross-bundle usage of both, proving the MF shared-singleton wiring for
+ * real, not just planned. `PoolListItem`'s own row rendering was originally
+ * left as plain `StyleSheet` per `implement-and-test.md §5`'s list-perf
+ * rationale, then revisited post-Implement (Layer 2 finding #4) as a
+ * deliberate, narrow exception — see that component's own header comment
+ * for why this particular (small-cardinality) list differs from
+ * Predictions' large fixture grid.
  */
 export function MyPoolsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { data: pools, isLoading, error } = useMyPoolsQuery();
 
   const handlePressPool = useCallback(
@@ -39,51 +52,36 @@ export function MyPoolsScreen({ navigation }: Props) {
   const keyExtractor = useCallback((item: PoolSummary) => item.id, []);
 
   if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator />
-      </View>
-    );
+    return <LoadingState label={t('pools.myPools.loading')} />;
   }
 
   if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text>Couldn't load your pools.</Text>
-      </View>
-    );
+    return <ErrorState label={t('pools.myPools.error')} />;
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.actions}>
-        <Button title="Create a pool" onPress={handleCreate} />
-        <Button title="Discover public pools" onPress={handleDiscover} />
-        <Button title="Join by code" onPress={handleJoinByToken} />
-      </View>
+    <YStack flex={1} gap="$3">
+      {/* Post-Implement fix (2026-07-06, Layer 2 finding #4): the 3 action
+          buttons used to sit in a cramped `flexWrap` row; stacked vertically
+          inside a `Card` (full-width buttons, `alignSelf="stretch"`) reads
+          much better with the longer Spanish labels ("Descubrir ligas
+          públicas", "Unirse con código") than an awkward multi-line wrap. */}
+      <Card margin="$4" marginBottom="$0" gap="$3">
+        <PrimaryButton alignSelf="stretch" onPress={handleCreate}>
+          {t('pools.myPools.create')}
+        </PrimaryButton>
+        <PrimaryButton alignSelf="stretch" onPress={handleDiscover}>
+          {t('pools.myPools.discover')}
+        </PrimaryButton>
+        <PrimaryButton alignSelf="stretch" onPress={handleJoinByToken}>
+          {t('pools.myPools.joinByToken')}
+        </PrimaryButton>
+      </Card>
       {pools && pools.length > 0 ? (
         <FlashList data={pools} renderItem={renderItem} keyExtractor={keyExtractor} />
       ) : (
-        <View style={styles.centered}>
-          <Text>You haven't joined any pools yet.</Text>
-        </View>
+        <EmptyState label={t('pools.myPools.empty')} />
       )}
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  actions: {
-    padding: 16,
-    gap: 8,
-  },
-});

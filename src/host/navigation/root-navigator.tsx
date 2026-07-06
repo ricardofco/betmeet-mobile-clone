@@ -1,22 +1,10 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Linking, StyleSheet, Text, View } from 'react-native';
-import { RemoteBoundary } from '@/host/remote-boundary';
+import { useEffect, useRef } from 'react';
+import { Linking } from 'react-native';
 import { AuthGatedNavigator } from '@/host/auth/navigation/auth-gated-navigator';
-import { AccountSettingsScreen } from '@/host/settings/screens/account-settings-screen';
-import { ChangePasswordScreen } from '@/host/settings/screens/change-password-screen';
-import { ChangeEmailScreen } from '@/host/settings/screens/change-email-screen';
-import { TotpEnrollmentScreen } from '@/host/settings/screens/totp-enrollment-screen';
-import { ChangeNicknameScreen } from '@/host/profile/screens/change-nickname-screen';
-import { ChangeAvatarScreen } from '@/host/profile/screens/change-avatar-screen';
-import { ChangeLocaleScreen } from '@/host/profile/screens/change-locale-screen';
-import { DeleteAccountScreen } from '@/host/settings/screens/delete-account-screen';
-import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
+import { RootDrawerNavigator } from '@/host/navigation/root-drawer-navigator';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { parseDeepLink } from '@/domain/auth/parse-deep-link';
-import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
 
 /**
  * ADR-003: React Navigation (native-stack) is the navigation library.
@@ -24,14 +12,18 @@ import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navi
  * Bolt 2: adds SettingsStack inside the authenticated app tree, and wires
  * the deep-link handler (ADR-005) for OAuth callbacks and password-reset
  * links.
- * Bolt 6 (design.md §4): registers `Predictions` directly on `AppStack`
- * (host-placed, `requirements.md §7.4`) — the first bolt to mount Bolt 5's
- * fixture-derived UI on a real, reachable screen.
- * Bolt 7 (design.md §4/§5, ADR-032/ADR-034): registers `Pools` on
- * `AppStack`, mounting the `pools` remote's single exposed `./App` module
- * (a self-contained nested navigator) via `lazy` + `RemoteBoundary` — same
- * on-demand-download wiring shape as the `education` remote (Bolt 0), the
- * first real feature remote since then.
+ * Bolt 6 (design.md §4): registers `Predictions` (host-placed,
+ * `requirements.md §7.4`) — the first bolt to mount Bolt 5's fixture-derived
+ * UI on a real, reachable screen.
+ * Bolt 7 (design.md §4/§5, ADR-032/ADR-034): registers `Pools`, mounting the
+ * `pools` remote's single exposed `./App` module (a self-contained nested
+ * navigator) via `lazy` + `RemoteBoundary` — same on-demand-download wiring
+ * shape as the `education` remote (Bolt 0), the first real feature remote
+ * since then.
+ * Bolt 9 (ADR-042): the flat `AppStack` is replaced by a nested
+ * Drawer → Tabs → per-tab-stack shell (`RootDrawerNavigator`) — see that
+ * module for the full shape. `AuthGatedNavigator`'s `renderAppTree` contract
+ * is unaffected; only what it renders internally changed.
  *
  * Deep links are handled imperatively below (`Linking.getInitialURL()` +
  * `Linking.addEventListener`), not via `NavigationContainer`'s `linking`
@@ -40,152 +32,6 @@ import type { AppStackParamList, SettingsStackParamList } from '@/host/auth/navi
  * redundant linking pipeline. Passing `linking` here previously caused the
  * app to hang on a blank screen.
  */
-
-const AppStack = createNativeStackNavigator<AppStackParamList>();
-const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
-
-// Loaded lazily so the host bundle never pays for the remote's code until
-// the user actually requests it (ADR-002).
-const EducationRemoteApp = lazy(() => import('education/App'));
-// Bolt 7 (ADR-032/ADR-034) — the pools remote, same on-demand pattern.
-const PoolsRemoteApp = lazy(() => import('pools/App'));
-
-function SettingsStackNavigator() {
-  return (
-    <SettingsStack.Navigator>
-      <SettingsStack.Screen
-        name="AccountSettings"
-        component={AccountSettingsScreen}
-        options={{ title: 'Account settings' }}
-      />
-      <SettingsStack.Screen
-        name="ChangeNickname"
-        component={ChangeNicknameScreen}
-        options={{ title: 'Nickname' }}
-      />
-      <SettingsStack.Screen
-        name="ChangeAvatar"
-        component={ChangeAvatarScreen}
-        options={{ title: 'Avatar' }}
-      />
-      <SettingsStack.Screen
-        name="ChangeLocale"
-        component={ChangeLocaleScreen}
-        options={{ title: 'Language' }}
-      />
-      <SettingsStack.Screen
-        name="ChangePassword"
-        component={ChangePasswordScreen}
-        options={{ title: 'Change password' }}
-      />
-      <SettingsStack.Screen
-        name="ChangeEmail"
-        component={ChangeEmailScreen}
-        options={{ title: 'Change email' }}
-      />
-      <SettingsStack.Screen
-        name="TotpEnrollment"
-        component={TotpEnrollmentScreen}
-        options={{ title: 'Two-factor authentication' }}
-      />
-      <SettingsStack.Screen
-        name="DeleteAccount"
-        component={DeleteAccountScreen}
-        options={{ title: 'Delete account' }}
-      />
-    </SettingsStack.Navigator>
-  );
-}
-
-type HomeScreenProps = NativeStackScreenProps<AppStackParamList, 'Home'>;
-
-function HomeScreen({ navigation }: HomeScreenProps) {
-  const [showRemote, setShowRemote] = useState(false);
-
-  const handleLoadRemote = useCallback(() => {
-    setShowRemote(true);
-  }, []);
-
-  const handleRetryRemote = useCallback(() => {
-    setShowRemote(false);
-  }, []);
-
-  const handleGoToPredictions = useCallback(() => {
-    navigation.navigate('Predictions');
-  }, [navigation]);
-
-  const handleGoToPools = useCallback(() => {
-    navigation.navigate('Pools');
-  }, [navigation]);
-
-  const handleGoToSettings = useCallback(() => {
-    navigation.navigate('Settings');
-  }, [navigation]);
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Liga Mundial</Text>
-      <Button title="Predictions" onPress={handleGoToPredictions} />
-      <Button title="Pools" onPress={handleGoToPools} />
-      <Button title="Settings" onPress={handleGoToSettings} />
-      <Text style={styles.subtitle}>
-        Host bundle is running. Tap below to load the federated `education` remote.
-      </Text>
-      <Button title="Load education remote" onPress={handleLoadRemote} />
-      {showRemote ? (
-        <View style={styles.remoteContainer}>
-          <RemoteBoundary onRetry={handleRetryRemote}>
-            <EducationRemoteApp />
-          </RemoteBoundary>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/**
- * Wraps the `pools` remote's exposed `./App` module in `RemoteBoundary`
- * (design.md §8, ADR-032) — same graceful-fallback pattern every remote
- * mount uses (ADR-002), so a failed chunk download shows a retry
- * affordance instead of crashing the host. `key` forces a fresh `Suspense`
- * boundary on retry, matching `RemoteBoundary`'s own retry contract.
- */
-function PoolsScreen() {
-  const [attempt, setAttempt] = useState(0);
-
-  const handleRetry = useCallback(() => {
-    setAttempt(current => current + 1);
-  }, []);
-
-  return (
-    <RemoteBoundary key={attempt} onRetry={handleRetry}>
-      <PoolsRemoteApp />
-    </RemoteBoundary>
-  );
-}
-
-function AppTree() {
-  return (
-    <AppStack.Navigator>
-      <AppStack.Screen name="Home" component={HomeScreen} options={{ title: 'Liga Mundial' }} />
-      <AppStack.Screen
-        name="Predictions"
-        component={PredictionsScreen}
-        options={{ title: 'Predictions' }}
-      />
-      <AppStack.Screen
-        name="Pools"
-        component={PoolsScreen}
-        options={{ title: 'Pools', headerShown: false }}
-      />
-      <AppStack.Screen
-        name="Settings"
-        component={SettingsStackNavigator}
-        options={{ title: 'Settings', headerShown: false }}
-      />
-    </AppStack.Navigator>
-  );
-}
 
 /**
  * The deep-link handler called by both `Linking.getInitialURL()` (cold start)
@@ -240,30 +86,7 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer>
-      <AuthGatedNavigator renderAppTree={() => <AppTree />} />
+      <AuthGatedNavigator renderAppTree={() => <RootDrawerNavigator />} />
     </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  remoteContainer: {
-    marginTop: 24,
-    minHeight: 80,
-    width: '100%',
-  },
-});

@@ -15,6 +15,11 @@ import type { VerifyEmailScreenParams } from '@/host/auth/screens/verify-email-s
  * here so `auth-gated-navigator.tsx` doesn't need to import from two
  * different param-list modules. `SettingsStackParamList` gains the three new
  * Profile rows (`ChangeNickname`/`ChangeAvatar`/`ChangeLocale`, PROFILE-5).
+ *
+ * Bolt 9 (ADR-042): the old flat `AppStackParamList` is replaced by a nested
+ * Drawer → Tabs → per-tab-stack shape. Route names (`Home`/`Predictions`/
+ * `Pools`/`Settings`) are unchanged — only their container nesting is new —
+ * so `screen-registry.ts`'s `SCREEN_REGISTRY` keys need zero edits.
  */
 export type AuthStackParamList = {
   SignIn: undefined;
@@ -28,11 +33,29 @@ export type MfaStackParamList = {
   MfaChallenge: undefined;
 };
 
-export type AppStackParamList = {
-  Home: undefined;
-  Predictions: undefined;
-  Pools: undefined;
+/** Bolt 9 (ADR-042) — the outermost tree `AuthGatedNavigator.renderAppTree` mounts. */
+export type RootDrawerParamList = {
+  MainTabs: undefined;
   Settings: undefined;
+};
+
+/** Bolt 9 (ADR-042) — one tab per primary module; each owns its own native-stack. */
+export type MainTabParamList = {
+  HomeTab: undefined;
+  PredictionsTab: undefined;
+  PoolsTab: undefined;
+};
+
+export type HomeStackParamList = {
+  Home: undefined;
+};
+
+export type PredictionsStackParamList = {
+  Predictions: undefined;
+};
+
+export type PoolsStackParamList = {
+  Pools: undefined;
 };
 
 export type SettingsStackParamList = {

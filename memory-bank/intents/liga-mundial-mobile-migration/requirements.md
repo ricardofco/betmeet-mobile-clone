@@ -122,3 +122,20 @@ Per the auto-continue rule: once this `requirements.md` is approved at Checkpoin
 2. `units/{unit-id}/unit-brief.md` for each of the 10 modules in §4.
 3. `stories/` under each unit.
 4. A bolt plan (sequencing/grouping of stories, risk-flagged per bolt).
+
+## 10. Change request — Navigation, i18n & Design Retrofit (added 2026-07-03, during Bolt 8 Layer 2)
+
+**Source:** raw user request (Spanish, translated), evaluated as a Construction-pause change evaluation; see `memory-bank/audit.md` for the full raw text and classification, and `bolt-plan.md`'s new **Bolt 9** for execution sequencing. Not a re-litigation of §1–§9 above — this section documents new/omitted requirements discovered after 8 bolts of real usage, per the project's standing "traceability" rule (every change traces to a recorded requirement).
+
+- **NFR-10.1 — Bottom tab navigator with module separation.** `Home`, `Predictions`, and `Pools` move from Home-hub-button/stack-push navigation (Bolts 0–8's actual shape, confirmed in `screen-registry.ts`) into a bottom tab navigator, one tab per module. *Source: user request, sub-concern 1; classified Architectural Change in the change evaluation.*
+- **NFR-10.2 — Hamburger/drawer menu for Settings.** `Settings` and its sub-screens (`AccountSettings`, `ChangeNickname`, `ChangePassword`, etc.) are reached via a drawer/hamburger affordance, not a tab slot. *Source: user follow-up, same session.*
+- **NFR-10.3 — iOS back button on every pushed screen.** No route may ship with `headerShown: false` (or an equivalent header suppression) unless it explicitly supplies its own back affordance. Confirmed gap: `Pools` and `Settings` in `root-navigator.tsx`. *Source: user request, sub-concern 3; classified Omitted Requirement/defect.*
+- **NFR-10.4 — Multi-language UI (i18n), device-detected.** App chrome and screen strings support `es`/`en`, auto-detected from the device OS locale via `react-native-localize`, defaulting to `es` when the device locale is undetected or unsupported. **Distinct from ADR-012's profile-stored locale preference** (PROFILE-3, a business-data field) — the relationship between the two is recorded, and flagged as an open question if unresolved, in **ADR-041** (`memory-bank/bolts/bolt-9-navigation-i18n-design-retrofit/adr-041-...md`). *Source: user follow-up, same session; classified New Requirement.*
+- **NFR-10.5 — Real visual design pass.** Replace the current default-RN-starter look with a real design system, using **Tamagui** for shared/reusable component work; plain `StyleSheet` remains acceptable for simple/one-off cases (not a mandate to rewrite every screen). *Source: user request, sub-concern 5 ("too simple/plain"); classified New Requirement, scope refined by the user's own tech decision (Tamagui).*
+
+**Binding technical decisions for Construction (user-approved 2026-07-03, not re-litigable at this Inception mini-cycle):**
+- Navigation: **React Navigation 7** — extends the already-adopted `@react-navigation/native`/`native-stack` (ADR-003) with `@react-navigation/bottom-tabs` + `@react-navigation/drawer`. No new navigation library swap.
+- i18n: **i18next + react-i18next + react-native-localize.**
+- UI/design system: **Tamagui**, with plain `StyleSheet` allowed for simple/one-off cases.
+
+These three decisions are inputs to Bolt 9 (`bolt-plan.md`), the same way Bolt 0's ADRs were inputs to every subsequent bolt.

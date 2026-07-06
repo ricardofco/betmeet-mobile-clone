@@ -30,6 +30,9 @@ export default Repack.defineRspackConfig((env) => {
       ...Repack.getResolveOptions({ enablePackageExports: true }),
       alias: {
         '@': path.resolve(__dirname, 'src'),
+        // See the matching comment + src/shared/shims/react-dom-native.ts in
+        // rspack.config.mjs (the host) — same unconditional Tamagui import.
+        'react-dom': path.resolve(__dirname, 'src/shared/shims/react-dom-native.ts'),
       },
     },
     output: {
@@ -96,5 +99,15 @@ function sharedDeps(pkg, { eager }) {
     // Fabric native components collide with the host's own registration.
     // See the matching comment in rspack.config.mjs.
     'react-native-svg': dep('react-native-svg'),
+    // Bolt 9 (ADR-043) — this remote's own screens (`MyPoolsScreen`) consume
+    // both directly; must resolve to the host's one Tamagui theme/context
+    // instance and one i18next instance, same risk class as the two rows
+    // above. NOT added: `@react-navigation/bottom-tabs`/`drawer`,
+    // `react-native-localize`, `react-native-reanimated`/`react-native-
+    // worklets` — host-only usage (ADR-043/046), this remote never renders
+    // tabs/drawer or reads the device locale directly.
+    tamagui: dep('tamagui'),
+    i18next: dep('i18next'),
+    'react-i18next': dep('react-i18next'),
   };
 }

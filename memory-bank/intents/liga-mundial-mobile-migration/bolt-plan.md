@@ -70,31 +70,46 @@ Each bolt lists its stories, what it depends on having already shipped, and a ri
 
 - **Risk: Medium-High.** The anti-bias masking (POOLS-6) must be verified at the API-response level, not just the UI (per its own story's explicit acceptance criterion) — a masking bug here is a real privacy regression, not a cosmetic one. The dual-save atomicity (PREDICTIONS-3) and the full account-deletion-with-ownership-transfer path (AUTH-6) are both "all-or-nothing or it's a data-integrity bug" flows — test the failure paths, not just the happy path.
 
-## Bolt 9 — Scoring & rankings
+## Bolt 9 — Navigation, i18n & Design Retrofit
+
+**Not story-based** (cross-cutting UX/architecture retrofit, inserted 2026-07-03 mid-Construction per an approved change request — see `memory-bank/audit.md` and `../../progress.md`). **Depends on:** Bolt 8 (must not destabilize the just-closed Pools-advanced/account-deletion work; retrofits everything shipped in Bolts 0–8).
+
+**Trigger:** user-reported UX gap during Bolt 8 Layer 2 — "everything lives on Home," missing iOS back buttons on `Pools`/`Settings`, no visual design system, no multi-language support. Evaluated as a change request (not a new unit) since it retrofits existing screens rather than adding a new business capability.
+
+Deliverables:
+- **Navigation shell** — extend the already-adopted React Navigation 7 (ADR-003, `@react-navigation/native`/`native-stack`) with `@react-navigation/bottom-tabs` + `@react-navigation/drawer`. Bottom tabs for the primary modules (`Home`/`Predictions`/`Pools`, each retaining its own native-stack for in-module push navigation so a back button is always available), a hamburger/drawer entry (not a tab) for `Settings` and its sub-screens. Federation boundaries (host vs. `pools`/`education` remotes) are unaffected — only the top-level container changes; `Pools` tab still mounts the `pools` remote's own internal navigator (ADR-032/034). Formal shape ADR to be recorded at this bolt's own ADR stage (Model → Design → ADR), not pre-decided here.
+- **Back-button fix** — audit every `headerShown: false` route in `root-navigator.tsx` (confirmed gap: `Pools` and `Settings`, see audit.md) and every remote-owned stack; restore native default back header (or an explicit custom header with a back affordance) wherever a screen is reachable by pushing forward.
+- **i18n** — `i18next` + `react-i18next` + `react-native-localize`. Device-locale detection, `es`/`en` supported, default `es` when undetected/unsupported. String-extraction pass across Bolts 5–8's screens (all currently hardcoded). Must reconcile with ADR-012 (profile-stored locale preference) — see **ADR-041**, which records this bolt's resolution of that relationship as an open question if not resolved beforehand.
+- **Design system** — Tamagui adopted for shared/reusable component work; plain `StyleSheet` remains acceptable for simple/one-off cases (not a wholesale rewrite mandate). Establishes tokens (spacing/color/typography) to replace the current default-RN-starter look.
+- **MF shared-singleton audit** — per the standing instruction in `activeContext.md`/`progress.md` (the `react-native-svg` Bolt-8 incident), every new package added here (`@react-navigation/bottom-tabs`, `@react-navigation/drawer`, `i18next`, `react-i18next`, `react-native-localize`, `tamagui`) must be added to `rspack.config.mjs`'s **and** every remote config's (`education`, `pools`) MF `shared` singleton list before Layer 2, not discovered on-device.
+
+- **Risk: Medium-High.** Touches every existing screen's navigation registration (`screen-registry.ts`, `AuthGatedNavigator`'s guard-branch rendering, ADR-001) and every existing remote's shared-dependency list — regression risk across all of Bolts 0–8, not a greenfield addition. Budget a full regression pass (existing Jest suite + a real device Layer 2 pass), not just new-feature tests.
+
+## Bolt 10 — Scoring & rankings
 
 **Stories:** RANKINGS-1, RANKINGS-2, RANKINGS-3, RANKINGS-4.
-**Depends on:** Bolt 6 (predictions exist to be scored), Bolt 8 (pool membership/joinedAt for pool leaderboards).
+**Depends on:** Bolt 6 (predictions exist to be scored), Bolt 8 (pool membership/joinedAt for pool leaderboards), Bolt 9 (new screens register into the tab/drawer shell, not a Home-hub button).
 
 - **Risk: Medium.** The dense-ranking display (RANKINGS-1/2) and the "no penalty bonus during live projection" rule (RANKINGS-3) are both easy to get subtly wrong without an explicit tied-entries test case — write that test before marking this bolt done, not after a bug report.
 
-## Bolt 10 — Notifications
+## Bolt 11 — Notifications
 
 **Stories:** NOTIF-1, NOTIF-2, NOTIF-3, NOTIF-4.
-**Depends on:** Bolt 3 (onboarding wizard hosts NOTIF-1/NOTIF-4's entry point), Bolt 1 (session to tie a token to).
+**Depends on:** Bolt 3 (onboarding wizard hosts NOTIF-1/NOTIF-4's entry point), Bolt 1 (session to tie a token to), Bolt 9 (tab/drawer shell).
 
 - **Risk: High.** The platform-push setup itself (FCM/APNs project configuration, certificates/keys, real-device testing) is the riskiest *infrastructure* item in the whole plan — flag this bolt's start date as dependent on FCM/APNs project setup being complete, not just on the dependent bolts above being done. Recommend confirming the push-SDK choice (Expo Notifications vs. direct SDKs, requirements.md §8) before this bolt opens, since it's not resolvable mid-bolt without rework.
 
-## Bolt 11 — Education
+## Bolt 12 — Education
 
 **Stories:** EDU-1, EDU-2, EDU-3, EDU-4.
-**Depends on:** Bolt 4 (scoring), Bolt 3 (onboarding wizard hosts EDU-3).
+**Depends on:** Bolt 4 (scoring), Bolt 3 (onboarding wizard hosts EDU-3), Bolt 9 (tab/drawer shell).
 
 - **Risk: Low.** Can slip later in the schedule without blocking anything else — it's a remote, low-frequency, non-mutating unit by design.
 
-## Bolt 12 — Admin
+## Bolt 13 — Admin
 
 **Stories:** ADMIN-1 through ADMIN-5.
-**Depends on:** Bolt 5 (match data), Bolt 9 (rescoring trigger target).
+**Depends on:** Bolt 5 (match data), Bolt 10 (rescoring trigger target).
 
 - **Risk: Low-Medium, lowest scheduling priority.** Included in full per the explicit "plan everything" decision (requirements.md §4), but nothing else in the app depends on it — safe to schedule last, or to descope from a first release without touching any other bolt's plan, if that becomes a later business decision (not assumed here).
 
@@ -103,27 +118,26 @@ Each bolt lists its stories, what it depends on having already shipped, and a ri
 ```
 Bolt 0 ──┬─→ Bolt 1 ─→ Bolt 2
          │       │
-         │       └─→ Bolt 3 ──┬─→ Bolt 6 ──┬─→ Bolt 8 ─→ Bolt 9 ─→ Bolt 12
-         │                    │            │
-         └─→ Bolt 4 ──────────┘            │
-                  │                        │
-                  └─→ Bolt 11              │
+         │       └─→ Bolt 3 ──┬─→ Bolt 6 ──┬─→ Bolt 8 ─→ Bolt 9 ─┬─→ Bolt 10 ─→ Bolt 13
+         │                    │            │                    ├─→ Bolt 11
+         └─→ Bolt 4 ──┬───────┘            │                    └─→ Bolt 12
+                       └─→ Bolt 12         │
          Bolt 1 ─→ Bolt 5 ─────────────────┘
          Bolt 3 ─→ Bolt 7 ─────────────────┘
-         Bolt 1, Bolt 3 ─→ Bolt 10
+         Bolt 1, Bolt 3 ─→ Bolt 11
 ```
 
-Bolt 4 can start in parallel with Bolt 1 from day one. Bolt 11 can start any time after Bolt 4 and Bolt 3. Bolt 10's start should be gated on push-infrastructure setup, not just on its dependent bolts.
+Bolt 4 can start in parallel with Bolt 1 from day one. Bolt 12 can start any time after Bolt 4 and Bolt 3 (and after Bolt 9's shell exists, for its tab/drawer registration). Bolt 11's start should be gated on push-infrastructure setup, not just on its dependent bolts. **Bolt 9 (Navigation/i18n/Design retrofit) was inserted 2026-07-03, after Bolt 8 closed** — it now gates every later bolt (10–13) because each registers its screens into the new tab/drawer shell rather than a Home-hub button.
 
 ## Risk register (rollup)
 
 | Risk level | Bolts | Common thread |
 |---|---|---|
-| **High** | 1, 10 | Foundational correctness (guard) and platform infra (native push setup) — both have real cost-to-fix-later if rushed |
-| **Medium-High** | 2, 8 | Genuinely new designs (deep links, MFA seam) and cross-cutting data-integrity flows (masking, dual-save, account deletion) |
-| **Medium** | 0, 3, 6, 9, 12 | Well-understood work with specific edge cases worth deliberate test coverage |
+| **High** | 1, 11 | Foundational correctness (guard) and platform infra (native push setup) — both have real cost-to-fix-later if rushed |
+| **Medium-High** | 2, 8, 9 | Genuinely new designs (deep links, MFA seam), cross-cutting data-integrity flows (masking, dual-save, account deletion), and a whole-app navigation/i18n/design retrofit touching every existing screen |
+| **Medium** | 0, 3, 6, 10, 13 | Well-understood work with specific edge cases worth deliberate test coverage |
 | **Low-Medium** | 5, 7 | Mostly straightforward, one notable subtlety each |
-| **Low** | 4, 11 | Pure logic / static content, no native modules, no backend mutation |
+| **Low** | 4, 12 | Pure logic / static content, no native modules, no backend mutation |
 
 ## Related artifacts
 

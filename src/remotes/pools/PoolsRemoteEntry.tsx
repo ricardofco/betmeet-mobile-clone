@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { MyPoolsScreen } from '@/remotes/pools/screens/my-pools-screen';
 import { DiscoverPoolsScreen } from '@/remotes/pools/screens/discover-pools-screen';
 import { CreatePoolScreen } from '@/remotes/pools/screens/create-pool-screen';
@@ -21,28 +22,54 @@ const PoolsStack = createNativeStackNavigator<PoolsStackParamList>();
  * being an MF shared singleton, ADR-034) and the host's
  * `NavigationContainer` (nested-navigator composition, standard React
  * Navigation) — this component does not create either itself.
+ *
+ * Post-Implement fix (2026-07-06, Layer 2 finding #3): every screen's
+ * header `title` here was a literal English string, missed during Bolt 9's
+ * Implement stage despite this remote being explicitly in-scope
+ * (`implement-and-test.md §6`) — now sourced from `i18next` via the
+ * `pools.screens.*` catalog keys (`src/platform/i18n/locales/{en,es}.ts`),
+ * the same MF `i18next` shared singleton `MyPoolsScreen`'s own retrofit
+ * already relies on (ADR-043).
  */
 export default function PoolsRemoteEntry() {
+  const { t } = useTranslation();
+
   return (
     <PoolsStack.Navigator>
-      <PoolsStack.Screen name="MyPools" component={MyPoolsScreen} options={{ title: 'My pools' }} />
+      <PoolsStack.Screen
+        name="MyPools"
+        component={MyPoolsScreen}
+        options={{ title: t('pools.screens.myPools') }}
+      />
       <PoolsStack.Screen
         name="DiscoverPools"
         component={DiscoverPoolsScreen}
-        options={{ title: 'Discover pools' }}
+        options={{ title: t('pools.screens.discoverPools') }}
       />
-      <PoolsStack.Screen name="CreatePool" component={CreatePoolScreen} options={{ title: 'Create pool' }} />
-      <PoolsStack.Screen name="JoinByToken" component={JoinByTokenScreen} options={{ title: 'Join by code' }} />
-      <PoolsStack.Screen name="PoolDetail" component={PoolDetailScreen} options={{ title: 'Pool' }} />
+      <PoolsStack.Screen
+        name="CreatePool"
+        component={CreatePoolScreen}
+        options={{ title: t('pools.screens.createPool') }}
+      />
+      <PoolsStack.Screen
+        name="JoinByToken"
+        component={JoinByTokenScreen}
+        options={{ title: t('pools.screens.joinByToken') }}
+      />
+      <PoolsStack.Screen
+        name="PoolDetail"
+        component={PoolDetailScreen}
+        options={{ title: t('pools.screens.poolDetail') }}
+      />
       <PoolsStack.Screen
         name="PoolSettings"
         component={PoolSettingsScreen}
-        options={{ title: 'Pool settings' }}
+        options={{ title: t('pools.screens.poolSettings') }}
       />
       <PoolsStack.Screen
         name="PoolPredictions"
         component={PoolPredictionsScreen}
-        options={{ title: 'Predictions' }}
+        options={{ title: t('pools.screens.poolPredictions') }}
       />
     </PoolsStack.Navigator>
   );

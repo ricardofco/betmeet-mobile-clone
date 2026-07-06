@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
 import {
   usePoolDetailQuery,
@@ -25,6 +26,7 @@ type Props = NativeStackScreenProps<PoolsStackParamList, 'PoolDetail'>;
  * mutations it calls (ADR-033).
  */
 export function PoolDetailScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { poolId } = route.params;
   const { data: detail, isLoading, error } = usePoolDetailQuery(poolId);
   const kickMutation = useKickMemberMutation();
@@ -87,7 +89,7 @@ export function PoolDetailScreen({ route, navigation }: Props) {
   if (error || !detail || !detail.ok) {
     return (
       <View style={styles.centered}>
-        <Text>Pool not found.</Text>
+        <Text>{t('pools.detail.notFound')}</Text>
       </View>
     );
   }
@@ -96,7 +98,11 @@ export function PoolDetailScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <Text style={styles.title}>{detail.pool.name}</Text>
       <Text style={styles.meta}>
-        {detail.pool.type === 'PUBLIC' ? 'Public' : 'Private'} · {detail.pool.memberCount}/{detail.pool.capacity} members
+        {detail.pool.type === 'PUBLIC' ? t('pools.detail.typePublic') : t('pools.detail.typePrivate')} ·{' '}
+        {t('pools.detail.memberCount', {
+          count: detail.pool.memberCount,
+          capacity: detail.pool.capacity,
+        })}
       </Text>
 
       {viewerId ? (
@@ -114,16 +120,16 @@ export function PoolDetailScreen({ route, navigation }: Props) {
       <FlashList data={members} renderItem={renderItem} keyExtractor={keyExtractor} />
 
       <View style={styles.actions}>
-        {viewerId ? <Button title="Predictions" onPress={handleOpenPredictions} /> : null}
+        {viewerId ? <Button title={t('pools.detail.predictionsButton')} onPress={handleOpenPredictions} /> : null}
         {isViewerOwner && canDelete(detail.pool, viewerId ?? '') ? (
-          <Button title="Pool settings" onPress={handleOpenSettings} />
+          <Button title={t('pools.detail.settings')} onPress={handleOpenSettings} />
         ) : null}
         {viewerId && canLeave(detail.pool, viewerId) ? (
-          <Button title="Leave pool" color="#cc3333" onPress={handleLeave} />
+          <Button title={t('pools.detail.leave')} color="#cc3333" onPress={handleLeave} />
         ) : null}
         {viewerId ? (
           <Button
-            title={isArchived ? 'Unarchive' : 'Archive'}
+            title={isArchived ? t('pools.detail.unarchive') : t('pools.detail.archive')}
             onPress={() => handleArchiveToggle(!isArchived)}
           />
         ) : null}

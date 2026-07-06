@@ -1,8 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Image, StyleSheet } from 'react-native';
+import { Text, XStack, YStack } from 'tamagui';
 import type { SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
 import { useProfileQuery } from '@/host/profile/hooks/use-profile-query';
+import { Heading, MutedText, Screen } from '@/shared/design/primitives';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'AccountSettings'>;
 
@@ -21,8 +24,14 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'AccountSettings'>;
  * Screen class: `protected` — only reachable after full authentication
  * (aal1 + confirmed email, with no pending MFA challenge, and onboarding
  * complete).
+ *
+ * Bolt 9 (NFR-10.4/10.5): strings extracted to `i18next`; rows composed from
+ * `shared/design/primitives.tsx`'s themed Tamagui primitives + tokens
+ * (never a literal hex/px value) — this drawer-hosted screen is one of this
+ * bolt's in-scope retrofit targets (`implement-and-test.md §5`).
  */
 export function AccountSettingsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { data: profile } = useProfileQuery();
 
   const handleChangeNickname = useCallback(() => {
@@ -54,110 +63,83 @@ export function AccountSettingsScreen({ navigation }: Props) {
   }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Account settings</Text>
+    <Screen gap="$0" padding="$0">
+      <YStack padding="$4" gap="$0">
+        <Heading marginBottom="$4">{t('settings.title')}</Heading>
 
-      <Text style={styles.sectionLabel}>Profile</Text>
+        <SectionLabel>{t('settings.sections.profile')}</SectionLabel>
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleChangeNickname} style={styles.row}>
-        <Text style={styles.rowLabel}>Nickname</Text>
-        <View style={styles.rowValue}>
-          <Text style={styles.rowValueText}>{profile?.nickname ?? '—'}</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </View>
-      </TouchableOpacity>
+        <Row label={t('settings.rows.nickname')} onPress={handleChangeNickname}>
+          <MutedText>{profile?.nickname ?? '—'}</MutedText>
+        </Row>
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleChangeAvatar} style={styles.row}>
-        <Text style={styles.rowLabel}>Avatar</Text>
-        <View style={styles.rowValue}>
+        <Row label={t('settings.rows.avatar')} onPress={handleChangeAvatar}>
           {profile?.avatar.url ? (
             <Image source={{ uri: profile.avatar.url }} style={styles.avatarThumb} />
           ) : null}
-          <Text style={styles.rowChevron}>›</Text>
-        </View>
-      </TouchableOpacity>
+        </Row>
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleChangeLocale} style={styles.row}>
-        <Text style={styles.rowLabel}>Language</Text>
-        <View style={styles.rowValue}>
-          <Text style={styles.rowValueText}>{profile?.locale ?? '—'}</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </View>
-      </TouchableOpacity>
+        <Row label={t('settings.rows.language')} onPress={handleChangeLocale}>
+          <MutedText>{profile?.locale ?? '—'}</MutedText>
+        </Row>
 
-      <Text style={styles.sectionLabel}>Account</Text>
+        <SectionLabel>{t('settings.sections.account')}</SectionLabel>
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleChangePassword} style={styles.row}>
-        <Text style={styles.rowLabel}>Change password</Text>
-        <Text style={styles.rowChevron}>›</Text>
-      </TouchableOpacity>
+        <Row label={t('settings.rows.changePassword')} onPress={handleChangePassword} />
+        <Row label={t('settings.rows.changeEmail')} onPress={handleChangeEmail} />
+        <Row label={t('settings.rows.twoFactor')} onPress={handleTotpEnrollment} />
+        <Row label={t('settings.rows.deleteAccount')} onPress={handleDeleteAccount} danger />
+      </YStack>
+    </Screen>
+  );
+}
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleChangeEmail} style={styles.row}>
-        <Text style={styles.rowLabel}>Change email</Text>
-        <Text style={styles.rowChevron}>›</Text>
-      </TouchableOpacity>
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <MutedText marginTop="$4" marginBottom="$1" fontSize="$1" fontWeight="600" textTransform="uppercase">
+      {children}
+    </MutedText>
+  );
+}
 
-      <TouchableOpacity accessibilityRole="button" onPress={handleTotpEnrollment} style={styles.row}>
-        <Text style={styles.rowLabel}>Enable two-factor authentication</Text>
-        <Text style={styles.rowChevron}>›</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity accessibilityRole="button" onPress={handleDeleteAccount} style={styles.row}>
-        <Text style={[styles.rowLabel, styles.dangerLabel]}>Delete account</Text>
-        <Text style={styles.rowChevron}>›</Text>
-      </TouchableOpacity>
-    </View>
+function Row({
+  label,
+  onPress,
+  danger,
+  children,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <XStack
+      accessibilityRole="button"
+      onPress={onPress}
+      alignItems="center"
+      justifyContent="space-between"
+      paddingVertical="$3"
+      borderBottomWidth={1}
+      borderBottomColor="$borderColor"
+    >
+      <Text fontSize="$3" color={danger ? '$danger' : '$color'}>
+        {label}
+      </Text>
+      <XStack alignItems="center" gap="$2">
+        {children}
+        <Text fontSize="$5" color="$colorMuted">
+          ›
+        </Text>
+      </XStack>
+    </XStack>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    gap: 0,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888',
-    textTransform: 'uppercase',
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
-  },
-  rowLabel: {
-    fontSize: 16,
-  },
-  dangerLabel: {
-    color: '#cc3333',
-  },
-  rowValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rowValueText: {
-    color: '#666',
-  },
   avatarThumb: {
     width: 28,
     height: 28,
     borderRadius: 14,
-  },
-  rowChevron: {
-    fontSize: 20,
-    color: '#999',
   },
 });

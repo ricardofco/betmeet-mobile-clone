@@ -118,3 +118,16 @@ Mobile's read/write contract is structurally aligned with the Prisma models cata
 - `../../project/domain-overview.md` — the business rules and state machines each unit brief below traces back to.
 - `../../project/migration-analysis.md` — the mechanism-translation reasoning behind §2–§4 above.
 - `units/{unit-id}/unit-brief.md` (next artifacts) — one per module in requirements.md §4.
+
+## 7. Navigation shell update (2026-07-03 addendum — requirements.md §10)
+
+Real usage across Bolts 0–8 exposed a gap in §4's topology as originally elaborated: it specifies **Module Federation bundle boundaries** (host vs. remote), but never specified the **top-level navigation container** arranging those bundles' screens for the user — Construction filled that gap ad hoc (a `Home` screen with buttons pushing to `Predictions`/`Pools` on one shared `AppStack`, `screen-registry.ts`), which is what produced the "everything lives in Home" user complaint.
+
+**This addendum does not change §4's federation boundaries** — `pools` remains a remote mounting its own internal navigator (ADR-032/034), `education` remains a remote, host-placed features remain host-placed. It changes only the **container shape** the host uses to arrange them:
+
+- The host renders a **bottom tab navigator** (`@react-navigation/bottom-tabs`) with one tab per primary module (`Home`, `Predictions`, `Pools` today; `Rankings`/`Education` join as tabs when Bolts 10/12 ship). Each tab owns its own native-stack, so in-module pushes always have a back affordance (requirements.md §10 NFR-10.3).
+- `Settings` and its sub-screens move **out of the tab row** into a **drawer** (`@react-navigation/drawer`), reached via a hamburger affordance in the tab-row screens' headers — it was never a peer "module" the way Predictions/Pools are.
+- `AuthGatedNavigator`'s guard-branch rendering (ADR-001) is unaffected in principle (it still picks which top-level tree mounts based on guard outcome) but must be re-verified against a tab+drawer tree instead of a single stack — tracked as Bolt 9's own Design-stage work, not pre-decided here.
+- Every package this shell introduces (`@react-navigation/bottom-tabs`, `@react-navigation/drawer`) must be added to the MF `shared` singleton list in `rspack.config.mjs` **and** every remote config (`rspack.config.education-remote.mjs`, `rspack.config.pools-remote.mjs`) — the same discipline ADR-034 established and the Bolt 8 `react-native-svg` incident (`activeContext.md`) proved is not optional.
+
+Full execution detail: `bolt-plan.md`'s Bolt 9. Full requirement text: `requirements.md` §10.
