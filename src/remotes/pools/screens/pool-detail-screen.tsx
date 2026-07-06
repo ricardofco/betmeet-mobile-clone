@@ -59,6 +59,12 @@ export function PoolDetailScreen({ route, navigation }: Props) {
     navigation.navigate('PoolPredictions', { poolId });
   }, [navigation, poolId]);
 
+  // Bolt 10 (RANKINGS-2, design.md §7.2) — same shape as
+  // `handleOpenPredictions` above.
+  const handleOpenLeaderboard = useCallback(() => {
+    navigation.navigate('PoolLeaderboard', { poolId });
+  }, [navigation, poolId]);
+
   const viewerId = detail?.ok ? detail.viewerMembership?.userId ?? null : null;
   const isViewerOwner = detail?.ok ? detail.pool.ownerId === viewerId : false;
   const isArchived = detail?.ok ? (detail.viewerMembership?.archivedAt ?? null) !== null : false;
@@ -121,6 +127,7 @@ export function PoolDetailScreen({ route, navigation }: Props) {
 
       <View style={styles.actions}>
         {viewerId ? <Button title={t('pools.detail.predictionsButton')} onPress={handleOpenPredictions} /> : null}
+        {viewerId ? <Button title={t('pools.detail.leaderboard')} onPress={handleOpenLeaderboard} /> : null}
         {isViewerOwner && canDelete(detail.pool, viewerId ?? '') ? (
           <Button title={t('pools.detail.settings')} onPress={handleOpenSettings} />
         ) : null}

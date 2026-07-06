@@ -24,6 +24,7 @@ export const en = {
       home: 'Home',
       predictions: 'Predictions',
       pools: 'Pools',
+      rankings: 'Rankings',
     },
     openMenu: 'Open menu',
     drawer: {
@@ -97,6 +98,9 @@ export const en = {
       // `pool-list-item.tsx` (a second, separately-missed hardcoded-English
       // spot in this same in-scope remote).
       archivedBadge: 'Archived',
+      // Bolt 10 (RANKINGS-2, design.md §7.2) — next to the existing
+      // `predictionsButton`.
+      leaderboard: 'Leaderboard',
     },
     // Post-Implement fix (2026-07-06, Layer 2 finding #3) — the pools
     // remote's own navigator (`PoolsRemoteEntry.tsx`) registered every
@@ -115,6 +119,28 @@ export const en = {
       poolDetail: 'Pool',
       poolSettings: 'Pool settings',
       poolPredictions: 'Predictions',
+      // Bolt 10 (RANKINGS-2, design.md §7.2) — this remote's own navigator
+      // header title, same convention as its sibling `pool*` keys above.
+      poolLeaderboard: 'Leaderboard',
     },
+    // Bolt 10 (RANKINGS-2) — `pool-leaderboard-screen.tsx`'s own chrome
+    // strings, distinct from `screens.poolLeaderboard` (the navigator header
+    // title) for the same reason `settings.rows.twoFactor` differs from
+    // `settings.headers.twoFactor`.
+    leaderboardScreen: {
+      loading: 'Loading leaderboard…',
+      error: 'Could not load this leaderboard.',
+      notMember: 'You must be a member of this pool to see its leaderboard.',
+      empty: 'No members yet.',
+    },
+  },
+  // Bolt 10 (RANKINGS-1/3, design.md §7.1) — the host's new `Rankings` tab.
+  rankings: {
+    title: 'Rankings',
+    loading: 'Loading rankings…',
+    error: "Couldn't load the rankings.",
+    empty: 'No ranked players yet.',
+    live: 'LIVE',
+    anonymousPlayer: 'Player',
   },
 } as const;

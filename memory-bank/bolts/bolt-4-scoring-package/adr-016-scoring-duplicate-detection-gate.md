@@ -31,6 +31,24 @@ This satisfies SCORING-2's AC ("mechanism is Construction's call") — the ADR-r
 - If a future bolt violates the rule, the ADR provides the documented ground for a PR rejection.
 - If violations become frequent enough to warrant automated enforcement, a follow-up ADR should introduce `eslint-plugin-boundaries` or a custom `no-restricted-syntax` rule — that decision is deferred, not pre-empted.
 
+**Update (Bolt 10, 2026-07-06) — see `bolt-10-scoring-rankings/adr-051-backend-computescore-port-twin-invariant.md`.**
+This ADR's review gate was written before this repo had a `backend/`
+project and names only mobile-side consumer bolts (6, 9, 11, 12) — it did
+not anticipate a case where a *different, structurally separate* TypeScript
+project (own `tsconfig`/`rootDir`, no import path to
+`src/shared/scoring/`) needs the same algorithm. Bolt 10 is that case:
+`backend/src/services/scoring/compute-score.ts` is a fresh, independent
+backend-side port, not a violation of this ADR's original intent (no
+mobile-side unit defined a local duplicate) but a genuinely new instance of
+"more than one implementation of this algorithm now exists in this repo."
+ADR-051 records this as a **"twin invariant"**: both files' doc comments
+cross-reference each other and this ADR, and any future scoring-rule change
+must update both implementations together, verified via a shared
+fixture-based test-case list. This ADR is not superseded — its original
+mobile-side rule (no mobile unit outside `src/shared/scoring/` may define
+its own `computeScore`-equivalent) still stands unchanged; ADR-051 only adds
+the backend-side twin.
+
 ## Review gate (to be applied at Bolt 6, 9, 11, 12 PR review)
 
 When reviewing any PR for a bolt that consumes the scoring package, verify:

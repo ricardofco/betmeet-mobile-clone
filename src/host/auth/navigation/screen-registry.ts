@@ -28,6 +28,9 @@ import type { ScreenClass } from '@/domain/auth/screen-class';
  * as `Home`/`Predictions`. This single route mounts the entire `pools`
  * remote (ADR-032/ADR-034); the remote's own internal screens are invisible
  * to this registry.
+ *
+ * Bolt 10 addition (design.md §7.1, ADR-048): `Rankings` gets the same
+ * `protected` tag — the 4th top-level tab, hosted (not a remote).
  */
 export const SCREEN_REGISTRY = {
   // ── Unauthenticated / auth-only ──
@@ -51,6 +54,8 @@ export const SCREEN_REGISTRY = {
   Home: ['protected'] as ScreenClass,
   Predictions: ['protected'] as ScreenClass,
   Pools: ['protected'] as ScreenClass,
+  /** Bolt 10 (ADR-048) — same tag as Home/Predictions/Pools. */
+  Rankings: ['protected'] as ScreenClass,
 
   // ── Settings area (Bolt 2 + Bolt 3) ──
   AccountSettings: ['protected'] as ScreenClass,

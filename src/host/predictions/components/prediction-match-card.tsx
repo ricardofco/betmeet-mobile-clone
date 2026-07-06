@@ -161,6 +161,17 @@ function PredictionMatchCardComponent({
   const statusDisplay = describeMatchStatus(match.status);
   const live = isLiveStatus(match.status);
 
+  // Bolt 10 (design.md §8) — additive-only: a small "Scored"/"Pending" badge
+  // reading the backend-authoritative `pointsStatus`. NOT_SCORED renders no
+  // badge (the common no-prediction-yet case, where a badge would be noise).
+  // Does not touch `canShowScoreBreakdown`/`buildScoreBreakdown` above.
+  const pointsStatusLabel =
+    prediction?.pointsStatus === 'SCORED'
+      ? 'Scored'
+      : prediction?.pointsStatus === 'PENDING_SCORING'
+        ? 'Pending'
+        : null;
+
   const saveButtonLabel =
     selectedPoolId === null
       ? prediction
@@ -174,7 +185,14 @@ function PredictionMatchCardComponent({
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.kickoff}>{formatKickoffTime(match.kickoffAt)}</Text>
-        {live ? <LiveIndicator /> : <Text style={styles.statusLabel}>{statusDisplay.label}</Text>}
+        <View style={styles.headerBadges}>
+          {pointsStatusLabel ? (
+            <View style={styles.pointsStatusBadge}>
+              <Text style={styles.pointsStatusBadgeText}>{pointsStatusLabel}</Text>
+            </View>
+          ) : null}
+          {live ? <LiveIndicator /> : <Text style={styles.statusLabel}>{statusDisplay.label}</Text>}
+        </View>
       </View>
 
       <View style={styles.teams}>
@@ -252,6 +270,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   kickoff: {
     fontSize: 12,
     color: '#6B7280',
@@ -260,6 +283,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7280',
     fontWeight: '600',
+  },
+  pointsStatusBadge: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    backgroundColor: '#ECFDF5',
+  },
+  pointsStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
   },
   teams: {
     flexDirection: 'row',

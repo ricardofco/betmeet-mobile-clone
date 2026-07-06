@@ -39,6 +39,7 @@ function makePrediction(overrides: Partial<MyPrediction> & { id: string; matchId
     homeScore: 1,
     awayScore: 0,
     penaltyWinner: null,
+    pointsStatus: 'NOT_SCORED',
     ...overrides,
   };
 }
@@ -129,7 +130,7 @@ describe('useSavePredictionMutation', () => {
     mockedPredictionsApi.getMyPredictions.mockResolvedValue([]);
     mockedPredictionsApi.savePrediction.mockResolvedValue({
       ok: true,
-      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 0, penaltyWinner: null },
+      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 0, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
     });
     const { Wrapper } = createWrapper();
 

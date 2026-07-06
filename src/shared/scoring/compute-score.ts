@@ -12,6 +12,14 @@
  * betmeet-clone/src/features/scoring/compute-score.ts (verified reference).
  * The two are in full agreement — no reconciliation was needed (unlike Bolt
  * 3's ADR-011 nickname-cooldown case).
+ *
+ * @invariant (Bolt 10, ADR-051) — `backend/src/services/scoring/compute-score.ts`
+ * is a fresh, independent backend-side port of this same algorithm (the
+ * standalone `backend/` Node project cannot import this file — see ADR-030).
+ * This is a deliberate, ADR-recorded "twin invariant": any change to scoring
+ * rules here must also be made there, verified via the shared fixture-based
+ * test-case list both suites reference. See ADR-016 and ADR-051 for the full
+ * record.
  */
 import { ScoringRuleSet } from './scoring-rules';
 

@@ -120,7 +120,7 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
 
   it('shows "Update prediction" label when a prediction already exists', async () => {
     const row = makeRow({
-      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 1, penaltyWinner: null },
+      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
     });
     await renderCard({ row, now: NOW_BEFORE_KICKOFF });
 
@@ -167,7 +167,7 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
   it('renders the score-breakdown panel for a finished match with a prediction', async () => {
     const row = makeRow({
       match: makeMatch({ status: 'FINISHED', homeScore: 2, awayScore: 1 }),
-      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 1, penaltyWinner: null },
+      prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 1, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
     });
     await renderCard({ row, now: NOW_AFTER_KICKOFF });
 
@@ -202,6 +202,61 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
     expect(screen.getByRole('button', { name: 'Save prediction' })).toBeOnTheScreen();
   });
 
+  describe('pointsStatus badge (Bolt 10, design.md §8 — additive, backend-authoritative)', () => {
+    it('shows a "Scored" badge when the prediction\'s pointsStatus is SCORED', async () => {
+      const row = makeRow({
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'SCORED' },
+      });
+      await renderCard({ row, now: NOW_BEFORE_KICKOFF });
+
+      expect(screen.getByText('Scored')).toBeOnTheScreen();
+      expect(screen.queryByText('Pending')).not.toBeOnTheScreen();
+    });
+
+    it('shows a "Pending" badge when the prediction\'s pointsStatus is PENDING_SCORING', async () => {
+      const row = makeRow({
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'PENDING_SCORING' },
+      });
+      await renderCard({ row, now: NOW_BEFORE_KICKOFF });
+
+      expect(screen.getByText('Pending')).toBeOnTheScreen();
+      expect(screen.queryByText('Scored')).not.toBeOnTheScreen();
+    });
+
+    it('renders no badge at all when the prediction\'s pointsStatus is NOT_SCORED (the common no-prediction-yet case)', async () => {
+      const row = makeRow({
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
+      });
+      await renderCard({ row, now: NOW_BEFORE_KICKOFF });
+
+      expect(screen.queryByText('Scored')).not.toBeOnTheScreen();
+      expect(screen.queryByText('Pending')).not.toBeOnTheScreen();
+    });
+
+    it('renders no badge at all when there is no prediction (pointsStatus does not apply)', async () => {
+      const row = makeRow({ prediction: null });
+      await renderCard({ row, now: NOW_BEFORE_KICKOFF });
+
+      expect(screen.queryByText('Scored')).not.toBeOnTheScreen();
+      expect(screen.queryByText('Pending')).not.toBeOnTheScreen();
+    });
+
+    it('does not affect the pre-existing score-breakdown panel (canShowScoreBreakdown/buildScoreBreakdown untouched)', async () => {
+      // A SCORED, finished-match prediction should show BOTH the badge AND
+      // the still-independent client-side breakdown panel (design.md §8's
+      // explicit "does not touch canShowScoreBreakdown" guarantee).
+      const row = makeRow({
+        match: makeMatch({ status: 'FINISHED', homeScore: 2, awayScore: 1 }),
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 1, penaltyWinner: null, pointsStatus: 'SCORED' },
+      });
+      await renderCard({ row, now: NOW_AFTER_KICKOFF });
+
+      expect(screen.getByText('Scored')).toBeOnTheScreen();
+      expect(screen.getByText('Exact score')).toBeOnTheScreen();
+      expect(screen.getByText('5 pts')).toBeOnTheScreen();
+    });
+  });
+
   describe('pool override (PREDICTIONS-3/4, Bolt 8)', () => {
     const pools: PoolPickerEntry[] = [{ id: 'pool-1', name: 'Office League' }];
 
@@ -233,7 +288,7 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
     it('selecting a pool with an existing global but no override pre-fills the global values and does NOT offer dual-save', async () => {
       const user = userEvent.setup();
       const row = makeRow({
-        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null },
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
       });
       await renderCard({ row, now: NOW_BEFORE_KICKOFF, pools });
 
@@ -269,10 +324,10 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
     it('shows "Use global prediction" only when both an override and a global exist for the selected pool', async () => {
       const user = userEvent.setup();
       const row = makeRow({
-        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null },
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
       });
       const poolOverrides: MyPrediction[] = [
-        { id: 'p2', matchId: 'm1', poolId: 'pool-1', homeScore: 1, awayScore: 1, penaltyWinner: null },
+        { id: 'p2', matchId: 'm1', poolId: 'pool-1', homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
       ];
       await renderCard({ row, now: NOW_BEFORE_KICKOFF, pools, poolOverrides });
 
@@ -285,10 +340,10 @@ describe('PredictionMatchCard (PREDICTIONS-1/2/5)', () => {
       const onResetOverride = jest.fn();
       const user = userEvent.setup();
       const row = makeRow({
-        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null },
+        prediction: { id: 'p1', matchId: 'm1', poolId: null, homeScore: 2, awayScore: 0, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
       });
       const poolOverrides: MyPrediction[] = [
-        { id: 'p2', matchId: 'm1', poolId: 'pool-1', homeScore: 1, awayScore: 1, penaltyWinner: null },
+        { id: 'p2', matchId: 'm1', poolId: 'pool-1', homeScore: 1, awayScore: 1, penaltyWinner: null, pointsStatus: 'NOT_SCORED' },
       ];
       await renderCard({ row, now: NOW_BEFORE_KICKOFF, pools, poolOverrides, onResetOverride });
 

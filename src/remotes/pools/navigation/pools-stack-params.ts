@@ -13,4 +13,6 @@ export type PoolsStackParamList = {
   PoolSettings: { poolId: string };
   /** Bolt 8 (POOLS-6, design.md §7) — the member-prediction grid. */
   PoolPredictions: { poolId: string };
+  /** Bolt 10 (RANKINGS-2, ADR-048, design.md §7.2) — the pool leaderboard. */
+  PoolLeaderboard: { poolId: string };
 };

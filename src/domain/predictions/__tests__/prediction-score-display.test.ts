@@ -26,6 +26,7 @@ function makePrediction(overrides: Partial<MyPrediction> = {}): MyPrediction {
     homeScore: 2,
     awayScore: 1,
     penaltyWinner: null,
+    pointsStatus: 'NOT_SCORED',
     ...overrides,
   };
 }

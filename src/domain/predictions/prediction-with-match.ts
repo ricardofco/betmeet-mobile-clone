@@ -1,5 +1,6 @@
 import type { Match } from '@/domain/competition';
 import type { PenaltyWinner } from '@/shared/scoring';
+import type { PointsStatus } from '@/domain/rankings';
 
 /**
  * The prediction-joined fixture shape — mobile's equivalent of the backend's
@@ -16,6 +17,13 @@ export type MyPrediction = {
   homeScore: number;
   awayScore: number;
   penaltyWinner: PenaltyWinner;
+  /**
+   * Bolt 10 (design.md §8) — additive, backend-authoritative field: "has
+   * this been durably scored yet." Distinct from, and does not replace,
+   * `canShowScoreBreakdown`/`buildScoreBreakdown`'s existing client-side
+   * recomputation (still the source for the breakdown panel itself).
+   */
+  pointsStatus: PointsStatus;
 };
 
 export type MatchWithMyPrediction = {

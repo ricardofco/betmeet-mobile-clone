@@ -15,6 +15,10 @@ import {
   transferSinglePoolOwnership,
   transferOwnedPoolsForAccountDeletion,
 } from '../services/account-deletion';
+import { computeScore } from '../services/scoring/compute-score';
+import { sweepFinishedUnscoredMatches } from '../services/scoring/score-sweeper';
+import { resolvePointsStatus } from '../services/scoring/resolve-points';
+import { resolveEffectivePredictions } from '../services/pool-leaderboard-aggregation';
 import type { AuthedRequest } from '../middleware/auth';
 
 type Auth = AuthedRequest['auth'];
@@ -298,10 +302,20 @@ function derivePenaltyWinnerLabel(
   return null;
 }
 
+/**
+ * Bolt 10 (design.md §4.2 elaboration, ADR-050): runs the same lazy sweep
+ * the `rankings.*` reads use, before resolving each prediction's
+ * `pointsStatus` — so a prediction's status is accurate the first time a
+ * user opens Predictions after a match finishes, not only after they've
+ * separately visited a ranking screen. Same sweep function, one more
+ * caller; no new trigger mechanism.
+ */
 const getMyPredictions: Handler = async (auth) => {
+  await sweepFinishedUnscoredMatches();
+
   const predictions = await prisma.prediction.findMany({
     where: { userId: auth.userId },
-    include: { match: true },
+    include: { match: true, prediction_scores: { select: { id: true } } },
   });
   return predictions.map((p) => ({
     id: p.id,
@@ -310,6 +324,14 @@ const getMyPredictions: Handler = async (auth) => {
     homeScore: p.homeScore,
     awayScore: p.awayScore,
     penaltyWinner: derivePenaltyWinnerLabel(p.penaltyWinnerTeamId, p.match.homeTeamId, p.match.awayTeamId),
+    // Bolt 10 (design.md §8) — additive field, backend-authoritative, answers
+    // "has this been durably scored yet" (distinct from Bolt 6's client-side
+    // `canShowScoreBreakdown`, which still governs the breakdown panel).
+    pointsStatus: resolvePointsStatus({
+      hasPrediction: true,
+      hasScore: p.prediction_scores !== null,
+      matchStatus: p.match.status,
+    }),
   }));
 };
 
@@ -927,6 +949,264 @@ const getMemberPredictions: Handler = async (auth, body) => {
 };
 
 // ---------------------------------------------------------------------------
+// rankings.* — Bolt 10 addition (RANKINGS-1/2/3, design.md §4, ADR-048/049/050/051)
+//
+// Both reads below call `sweepFinishedUnscoredMatches()` first (ADR-050 —
+// lazy sweep on read, this backend's only score-finalization trigger).
+// `RankingRowDTO` carries raw totals only — position/dense-ranking/tie-break
+// is computed mobile-side (design.md §4.1, `src/domain/rankings/`).
+// ---------------------------------------------------------------------------
+
+function penaltyWinnerFromTeamId(
+  penaltyWinnerTeamId: string | null,
+  homeTeamId: string | null,
+  awayTeamId: string | null,
+): 'home' | 'away' | null {
+  if (!penaltyWinnerTeamId) return null;
+  if (penaltyWinnerTeamId === homeTeamId) return 'home';
+  if (penaltyWinnerTeamId === awayTeamId) return 'away';
+  return null;
+}
+
+function nicknameOf(
+  profile: { nicknameBase: string | null; nicknameDiscriminator: string | null } | null | undefined,
+): string | null {
+  if (!profile?.nicknameBase) return null;
+  return `${profile.nicknameBase}#${profile.nicknameDiscriminator}`;
+}
+
+/**
+ * `rankings.getGlobalRanking` — global scope (model.md §2/§4). Confirmed
+ * total is `SUM(PredictionScore.totalPoints)` over each user's GLOBAL
+ * (`poolId: null`) predictions only; pool-scoped overrides never contribute,
+ * even during live projection (model.md §2/§4 point 3). Only verified,
+ * non-deleted users with >=1 scored prediction appear in the confirmed
+ * pass — a user with zero scored predictions is simply absent, UNLESS a
+ * currently-LIVE global prediction of theirs synthesizes them into the
+ * projected pass (model.md §4 point 6, `hasConfirmedEntry: false`).
+ */
+const getGlobalRanking: Handler = async auth => {
+  await sweepFinishedUnscoredMatches();
+
+  const confirmedGroups = await prisma.prediction_scores.groupBy({
+    by: ['user_id'],
+    where: {
+      predictions: { poolId: null },
+      profiles: { verificationStatus: { not: 'UNVERIFIED' }, deletedAt: null },
+    },
+    _sum: { total_points: true },
+  });
+
+  const confirmedTotals = new Map<string, number>();
+  for (const group of confirmedGroups) {
+    confirmedTotals.set(group.user_id, group._sum.total_points ?? 0);
+  }
+
+  const liveMatches = await prisma.match.findMany({
+    where: { status: 'LIVE' },
+    include: { phase: true },
+  });
+  const isLive = liveMatches.length > 0;
+
+  const allUserIds = new Set(confirmedTotals.keys());
+  const projectedTotals = new Map<string, number>();
+
+  if (isLive) {
+    const livePredictions = await prisma.prediction.findMany({
+      where: {
+        poolId: null, // global scope: pool overrides never contribute (model.md §4 point 3)
+        matchId: { in: liveMatches.map(m => m.id) },
+        user: { verificationStatus: { not: 'UNVERIFIED' }, deletedAt: null },
+      },
+      select: { userId: true, matchId: true, homeScore: true, awayScore: true, penaltyWinnerTeamId: true },
+    });
+
+    const predictionsByMatch = new Map<string, typeof livePredictions>();
+    for (const prediction of livePredictions) {
+      const bucket = predictionsByMatch.get(prediction.matchId) ?? [];
+      bucket.push(prediction);
+      predictionsByMatch.set(prediction.matchId, bucket);
+    }
+
+    const livePointsByUser = new Map<string, number>();
+    for (const match of liveMatches) {
+      if (match.homeScore === null || match.awayScore === null) continue;
+      const predictions = predictionsByMatch.get(match.id) ?? [];
+      for (const prediction of predictions) {
+        // model.md §4 point 5 (the headline rule): `actualPenaltyWinner` is
+        // unconditionally `null` while LIVE — no shootout data exists yet.
+        const breakdown = computeScore({
+          predictedHome: prediction.homeScore,
+          predictedAway: prediction.awayScore,
+          actualHome: match.homeScore,
+          actualAway: match.awayScore,
+          isKnockout: match.phase.type === 'KNOCKOUT',
+          predictedPenaltyWinner: penaltyWinnerFromTeamId(
+            prediction.penaltyWinnerTeamId,
+            match.homeTeamId,
+            match.awayTeamId,
+          ),
+          actualPenaltyWinner: null,
+        });
+        livePointsByUser.set(
+          prediction.userId,
+          (livePointsByUser.get(prediction.userId) ?? 0) + breakdown.totalPoints,
+        );
+      }
+    }
+
+    for (const userId of livePointsByUser.keys()) allUserIds.add(userId);
+    for (const userId of allUserIds) {
+      const confirmed = confirmedTotals.get(userId) ?? 0;
+      const live = livePointsByUser.get(userId) ?? 0;
+      projectedTotals.set(userId, confirmed + live);
+    }
+  }
+
+  const profiles = await prisma.profile.findMany({
+    where: { id: { in: [...allUserIds] } },
+    select: { id: true, nicknameBase: true, nicknameDiscriminator: true, avatarUrl: true },
+  });
+  const profileById = new Map(profiles.map(p => [p.id, p]));
+
+  const rows = [...allUserIds].map(userId => {
+    const profile = profileById.get(userId);
+    return {
+      userId,
+      nickname: nicknameOf(profile),
+      avatarUrl: profile?.avatarUrl ?? null,
+      isViewer: userId === auth.userId,
+      confirmedTotal: confirmedTotals.get(userId) ?? 0,
+      projectedTotal: isLive ? (projectedTotals.get(userId) ?? confirmedTotals.get(userId) ?? 0) : null,
+      hasConfirmedEntry: confirmedTotals.has(userId),
+    };
+  });
+
+  return { ok: true, isLive, rows };
+};
+
+/**
+ * `rankings.getPoolLeaderboard` — pool scope (model.md §3/§4). Every current
+ * member appears, even at 0 points (`hasConfirmedEntry: true` always). Each
+ * (member, match) pair's points come from exactly one effective prediction
+ * (`resolveEffectivePredictions`, design.md §3: pool-scoped override if one
+ * exists, else the member's global prediction, never both), excluding any
+ * match whose `kickoffAt` precedes the member's `joinedAt` (model.md §3's
+ * join-date scoping — applies identically to the live-projection pass,
+ * model.md §4 point 4).
+ */
+const getPoolLeaderboard: Handler = async (auth, body) => {
+  const poolId = String(body?.poolId ?? '');
+
+  const pool = await prisma.pool.findUnique({ where: { id: poolId } });
+  if (!pool) return { ok: false, error: 'NOT_FOUND' as const };
+
+  const memberships = await prisma.poolMembership.findMany({
+    where: { poolId },
+    include: { user: { select: { id: true, nicknameBase: true, nicknameDiscriminator: true, avatarUrl: true } } },
+  });
+  const isMember = memberships.some(m => m.userId === auth.userId);
+  if (!isMember) return { ok: false, error: 'NOT_MEMBER' as const };
+
+  await sweepFinishedUnscoredMatches();
+
+  const memberIds = memberships.map(m => m.userId);
+  const memberJoinedAt = new Map(memberships.map(m => [m.userId, m.joinedAt]));
+
+  // Every prediction (global or this pool's override) any member has ever
+  // made — the raw material `resolveEffectivePredictions` collapses into
+  // exactly one row per (member, match).
+  const allPredictions = await prisma.prediction.findMany({
+    where: {
+      userId: { in: memberIds },
+      OR: [{ poolId }, { poolId: null }],
+    },
+    include: {
+      match: {
+        select: { id: true, kickoffAt: true, status: true, homeTeamId: true, awayTeamId: true },
+      },
+      prediction_scores: { select: { total_points: true } },
+    },
+  });
+
+  const effective = resolveEffectivePredictions(
+    allPredictions.map(p => ({
+      id: p.id,
+      userId: p.userId,
+      matchId: p.matchId,
+      poolId: p.poolId,
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      penaltyWinnerTeamId: p.penaltyWinnerTeamId,
+    })),
+    poolId,
+  );
+  const predictionById = new Map(allPredictions.map(p => [p.id, p]));
+
+  const confirmedTotals = new Map<string, number>(memberIds.map(id => [id, 0]));
+  for (const prediction of effective.values()) {
+    const full = predictionById.get(prediction.id)!;
+    const joinedAt = memberJoinedAt.get(prediction.userId);
+    if (!joinedAt || !full.match.kickoffAt || full.match.kickoffAt < joinedAt) continue; // model.md §3 join-date scoping
+    const points = full.prediction_scores?.total_points ?? 0;
+    confirmedTotals.set(prediction.userId, (confirmedTotals.get(prediction.userId) ?? 0) + points);
+  }
+
+  const liveMatchIds = new Set(allPredictions.filter(p => p.match.status === 'LIVE').map(p => p.match.id));
+  const isLive = liveMatchIds.size > 0;
+  const projectedTotals = new Map<string, number>();
+
+  if (isLive) {
+    const liveMatches = await prisma.match.findMany({
+      where: { id: { in: [...liveMatchIds] } },
+      include: { phase: true },
+    });
+    const liveMatchById = new Map(liveMatches.map(m => [m.id, m]));
+
+    const livePointsByUser = new Map<string, number>();
+    for (const prediction of effective.values()) {
+      const full = predictionById.get(prediction.id)!;
+      if (full.match.status !== 'LIVE') continue;
+      const joinedAt = memberJoinedAt.get(prediction.userId);
+      if (!joinedAt || !full.match.kickoffAt || full.match.kickoffAt < joinedAt) continue; // model.md §4 point 4
+      const liveMatch = liveMatchById.get(full.match.id);
+      if (!liveMatch || liveMatch.homeScore === null || liveMatch.awayScore === null) continue;
+
+      const breakdown = computeScore({
+        predictedHome: full.homeScore,
+        predictedAway: full.awayScore,
+        actualHome: liveMatch.homeScore,
+        actualAway: liveMatch.awayScore,
+        isKnockout: liveMatch.phase.type === 'KNOCKOUT',
+        predictedPenaltyWinner: penaltyWinnerFromTeamId(
+          full.penaltyWinnerTeamId,
+          liveMatch.homeTeamId,
+          liveMatch.awayTeamId,
+        ),
+        actualPenaltyWinner: null, // model.md §4 point 5
+      });
+      livePointsByUser.set(prediction.userId, (livePointsByUser.get(prediction.userId) ?? 0) + breakdown.totalPoints);
+    }
+
+    for (const userId of memberIds) {
+      projectedTotals.set(userId, (confirmedTotals.get(userId) ?? 0) + (livePointsByUser.get(userId) ?? 0));
+    }
+  }
+
+  const rows = memberships.map(m => ({
+    userId: m.userId,
+    nickname: nicknameOf(m.user),
+    avatarUrl: m.user.avatarUrl,
+    isViewer: m.userId === auth.userId,
+    confirmedTotal: confirmedTotals.get(m.userId) ?? 0,
+    projectedTotal: isLive ? (projectedTotals.get(m.userId) ?? confirmedTotals.get(m.userId) ?? 0) : null,
+    hasConfirmedEntry: true, // every member appears, model.md §3
+  }));
+
+  return { ok: true, isLive, rows };
+};
+
+// ---------------------------------------------------------------------------
 // auth.* — Bolt 8 addition (AUTH-6, design.md §3.1/ADR-039/ADR-040)
 // ---------------------------------------------------------------------------
 
@@ -994,4 +1274,6 @@ export const handlers: Record<string, Handler> = {
   'pools.transferOwnership': transferOwnership,
   'pools.getOwnedPoolsForDeletion': getOwnedPoolsForDeletion,
   'pools.getMemberPredictions': getMemberPredictions,
+  'rankings.getGlobalRanking': getGlobalRanking,
+  'rankings.getPoolLeaderboard': getPoolLeaderboard,
 };

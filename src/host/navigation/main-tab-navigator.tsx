@@ -1,16 +1,18 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Home, Target, Users } from 'lucide-react-native';
+import { Home, Target, Trophy, Users } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { renderHeaderMenuButton } from '@/host/navigation/components/header-menu-button';
 import { HomeScreen } from '@/host/navigation/screens/home-screen';
 import { PoolsTabScreen } from '@/host/navigation/screens/pools-tab-screen';
 import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
+import { RankingsScreen } from '@/host/rankings/screens/rankings-screen';
 import type {
   HomeStackParamList,
   MainTabParamList,
   PoolsStackParamList,
   PredictionsStackParamList,
+  RankingsStackParamList,
 } from '@/host/auth/navigation/auth-stack-params';
 
 /**
@@ -20,8 +22,14 @@ import type {
  * screen's header renders `HeaderMenuButton` (`headerLeft`) to reach the
  * `Settings` drawer.
  *
+ * Bolt 10 (ADR-048) adds a 4th tab, `Rankings` — same shape as the other
+ * three (its own native-stack, one root screen, `HeaderMenuButton`), hosted
+ * directly rather than shipped as a Module Federation remote. Tab order:
+ * Home / Predictions / Pools / Rankings (newest last, cosmetic).
+ *
  * Route names inside each stack are unchanged from Bolts 0-8
- * (`Home`/`Predictions`/`Pools`) — `screen-registry.ts` needs zero edits.
+ * (`Home`/`Predictions`/`Pools`) — `screen-registry.ts` needs zero edits for
+ * those three; `Rankings` is Bolt 10's one new addition there.
  *
  * Federation boundary, unaffected (system-context.md §7): `PoolsStack`'s
  * root screen (`PoolsTabScreen`) still mounts the `pools` remote's own
@@ -39,6 +47,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const PredictionsStack = createNativeStackNavigator<PredictionsStackParamList>();
 const PoolsStack = createNativeStackNavigator<PoolsStackParamList>();
+const RankingsStack = createNativeStackNavigator<RankingsStackParamList>();
 
 // Post-Implement fix (2026-07-06, Layer 2 finding #1): without `tabBarIcon`,
 // `@react-navigation/bottom-tabs` falls back to its own generic placeholder
@@ -67,6 +76,10 @@ function renderPredictionsTabIcon({ color, size }: { color: string; size: number
 
 function renderPoolsTabIcon({ color, size }: { color: string; size: number }) {
   return <Users color={color} size={size} />;
+}
+
+function renderRankingsTabIcon({ color, size }: { color: string; size: number }) {
+  return <Trophy color={color} size={size} />;
 }
 
 function HomeStackNavigator() {
@@ -108,6 +121,19 @@ function PoolsStackNavigator() {
   );
 }
 
+function RankingsStackNavigator() {
+  const { t } = useTranslation();
+  return (
+    <RankingsStack.Navigator>
+      <RankingsStack.Screen
+        name="Rankings"
+        component={RankingsScreen}
+        options={{ title: t('navigation.tabs.rankings'), headerLeft: renderHeaderMenuButton }}
+      />
+    </RankingsStack.Navigator>
+  );
+}
+
 export function MainTabNavigator() {
   const { t } = useTranslation();
 
@@ -127,6 +153,11 @@ export function MainTabNavigator() {
         name="PoolsTab"
         component={PoolsStackNavigator}
         options={{ title: t('navigation.tabs.pools'), tabBarIcon: renderPoolsTabIcon }}
+      />
+      <Tab.Screen
+        name="RankingsTab"
+        component={RankingsStackNavigator}
+        options={{ title: t('navigation.tabs.rankings'), tabBarIcon: renderRankingsTabIcon }}
       />
     </Tab.Navigator>
   );

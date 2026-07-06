@@ -17,6 +17,7 @@ export const es = {
       home: 'Inicio',
       predictions: 'Pronósticos',
       pools: 'Ligas',
+      rankings: 'Clasificación',
     },
     openMenu: 'Abrir menú',
     drawer: {
@@ -78,6 +79,7 @@ export const es = {
       typePrivate: 'Privada',
       memberCount: '{{count}}/{{capacity}} miembros',
       archivedBadge: 'Archivada',
+      leaderboard: 'Clasificación',
     },
     screens: {
       myPools: 'Mis ligas',
@@ -87,6 +89,21 @@ export const es = {
       poolDetail: 'Liga',
       poolSettings: 'Ajustes de la liga',
       poolPredictions: 'Pronósticos',
+      poolLeaderboard: 'Clasificación',
     },
+    leaderboardScreen: {
+      loading: 'Cargando clasificación…',
+      error: 'No se pudo cargar esta clasificación.',
+      notMember: 'Debes ser miembro de esta liga para ver su clasificación.',
+      empty: 'Todavía no hay miembros.',
+    },
+  },
+  rankings: {
+    title: 'Clasificación',
+    loading: 'Cargando clasificación…',
+    error: 'No se pudo cargar la clasificación.',
+    empty: 'Todavía no hay jugadores clasificados.',
+    live: 'EN VIVO',
+    anonymousPlayer: 'Jugador',
   },
 } as const;

@@ -60,4 +60,15 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-navigation|react-native-gesture-handler|react-native-screens|react-native-url-polyfill|react-native-keychain|react-native-svg|react-native-qrcode-svg|react-native-image-picker|@react-native-async-storage|@shopify/flash-list|react-native-drawer-layout|react-native-is-edge-to-edge|react-native-worklets|react-native-reanimated|@tamagui|tamagui|i18next|react-i18next)',
   ],
+  // Bolt 10 (Test stage): `backend/` is a standalone Node/Express project
+  // with its OWN `jest.config.js` (ts-jest, `node` test environment) — this
+  // repo's `yarn test` must never sweep its test files into the mobile
+  // (React Native preset) run. Found and fixed during this bolt's Test
+  // stage: without this, `backend/src/services/**/__tests__/*.test.ts`
+  // happened to also pass under the mobile config (plain TS with no
+  // backend-specific transform needs), silently inflating this project's
+  // test counts and coupling two independent test runners together by
+  // accident. Run backend tests via `cd backend && npm test`, mobile tests
+  // via `yarn test` — never both from one invocation.
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/backend/'],
 };

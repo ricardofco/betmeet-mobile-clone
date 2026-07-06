@@ -39,11 +39,17 @@ export type RootDrawerParamList = {
   Settings: undefined;
 };
 
-/** Bolt 9 (ADR-042) — one tab per primary module; each owns its own native-stack. */
+/**
+ * Bolt 9 (ADR-042) — one tab per primary module; each owns its own
+ * native-stack. Bolt 10 (ADR-048) adds the 4th tab, `RankingsTab` —
+ * confirms Bolt 9's own forward-compatibility check that `MainTabNavigator`
+ * accepts additional `Tab.Screen`s without a reshape.
+ */
 export type MainTabParamList = {
   HomeTab: undefined;
   PredictionsTab: undefined;
   PoolsTab: undefined;
+  RankingsTab: undefined;
 };
 
 export type HomeStackParamList = {
@@ -56,6 +62,11 @@ export type PredictionsStackParamList = {
 
 export type PoolsStackParamList = {
   Pools: undefined;
+};
+
+/** Bolt 10 (ADR-048) — RANKINGS-1's own top-level stack. */
+export type RankingsStackParamList = {
+  Rankings: undefined;
 };
 
 export type SettingsStackParamList = {
