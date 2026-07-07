@@ -18,6 +18,13 @@ export const en = {
     cancel: 'Cancel',
     save: 'Save',
     error: 'Something went wrong',
+    // Bolt 12 (EDU-3, design.md §5) — ported 1:1 from betmeet-clone's
+    // `common.continue`/`common.skipForNow` (`rules-step.tsx`'s own
+    // Continue/Skip buttons), reused here so `OnboardingRulesScreen`'s
+    // buttons aren't hardcoded English while the rest of its body is
+    // bilingual.
+    continue: 'Continue',
+    skipForNow: 'Skip for now',
   },
   navigation: {
     tabs: {
@@ -33,8 +40,11 @@ export const en = {
   },
   home: {
     title: 'Liga Mundial',
-    subtitle: 'Host bundle is running. Tap below to load the federated `education` remote.',
-    loadEducationRemote: 'Load education remote',
+    // Bolt 12 (ADR-053): the Bolt-0 "load the federated `education` remote"
+    // demo framing is replaced — the button now pushes a real Rules Center
+    // screen, not a demo toggle.
+    subtitle: 'Host bundle is running.',
+    openRulesCenter: 'Open Rules Center',
   },
   settings: {
     title: 'Account settings',
@@ -54,6 +64,10 @@ export const en = {
       // phrase) were already two different strings before this bolt.
       twoFactor: 'Enable two-factor authentication',
       deleteAccount: 'Delete account',
+      // Bolt 13 (ADMIN-1, design.md §10) — genuinely invisible to the ~100%
+      // of users who aren't the seeded ADMIN account (see
+      // account-settings-screen.tsx's `useAdminAccessQuery()` gate).
+      admin: 'Admin',
     },
     headers: {
       twoFactor: 'Two-factor authentication',
@@ -142,5 +156,177 @@ export const en = {
     empty: 'No ranked players yet.',
     live: 'LIVE',
     anonymousPlayer: 'Player',
+  },
+  // Bolt 12 (EDU-1, design.md §3/§8) — the `education` remote's Rules Center.
+  // `documents.<slug>.title` feeds `RulesAccordion`'s per-section headers;
+  // the section bodies themselves are typed data, not i18n strings
+  // (`src/domain/education/rule-content.ts`, ADR-055).
+  rules: {
+    centerTitle: 'Rules Center',
+    centerSubtitle: 'Everything you need to know to play.',
+    demoTitle: 'Examples',
+    documents: {
+      scoring: { title: 'Scoring' },
+      penalties: { title: 'Penalty predictions' },
+      'match-locks': { title: 'Prediction locks' },
+      ties: { title: 'Ranking ties' },
+      pools: { title: 'Leagues and members' },
+    },
+  },
+  // Bolt 12 (EDU-2, design.md §4) — ported 1:1 from betmeet-clone's
+  // `calculator.*` dictionary (`scoring-calculator.tsx`/
+  // `calculator-error-boundary.tsx`). `penaltyWinner`/`penaltyScore`/
+  // `penaltyScoreHint` are dropped — the mobile calculator never asks for a
+  // separate winner field (always derived, model.md §3), so those keys have
+  // no consumer here.
+  calculator: {
+    title: 'Points calculator',
+    description: 'Enter a prediction and a result to see how many points you would earn.',
+    prediction: 'Your prediction',
+    actual: 'Actual result',
+    home: 'Home',
+    away: 'Away',
+    knockout: 'Knockout stage (allows penalties)',
+    penaltyShootout: 'Penalty shootout',
+    penaltyBonusHint:
+      'The bonus (+1) is earned for guessing who wins the shootout, not the exact shootout score.',
+    penaltyTie: 'The penalty shootout cannot end tied. Adjust the score.',
+    penaltyDerivedWinner: 'Wins on penalties:',
+    total: 'Points earned',
+    fallbackTitle: 'Scoring table',
+    fallbackNote: 'The calculator is not available right now, but these are the rules.',
+  },
+  // Bolt 12 (EDU-2, design.md §3/§4) — `ScoreBreakdownExplainer`'s (education's
+  // own twin, ADR-054) copy, ported 1:1 from betmeet-clone's `breakdown.*`.
+  breakdown: {
+    exact: 'You got the exact score.',
+    result: 'You got the result (+2 points).',
+    partial: "You got at least one team's goals.",
+    miss: 'You missed both the score and the result.',
+    penaltyApplied: 'You also guessed the penalty winner (+1).',
+    base: 'Base points',
+    penalty: 'Penalty bonus',
+    total: 'Total',
+    resultPoints: 'Result',
+    homeGoalPoints: 'Home goals',
+    awayGoalPoints: 'Away goals',
+  },
+  // Bolt 12 (EDU-2/EDU-3) — the static rule→points list shared (by
+  // convention, not by import — ADR-054) between `ScoringTable` (education
+  // remote) and `OnboardingScoringSummary` (host).
+  scoring: {
+    exact: 'Exact score',
+    exactPoints: '5 points',
+    result: 'Correct result (+2 points)',
+    resultPoints: '2 points',
+    partial: 'Matched team goals (+1 point each)',
+    partialPoints: '1 point per team',
+    miss: 'You miss everything',
+    missPoints: '0 points',
+    penaltyBonus: 'Bonus for guessing the penalty winner',
+    penaltyBonusPoints: '+1 point',
+  },
+  // Bolt 12 (EDU-4, design.md §9.3) — two illustrative cue placements, plus
+  // the dismiss affordance's accessibility label (a plain `✕` glyph, §10 —
+  // no icon library added).
+  education: {
+    cues: {
+      rulesAccordionIntro: 'Tap a section to expand it and read the full rule.',
+      calculatorIntro: 'Try it yourself: change the scores below and see the points update live.',
+      dismiss: 'Dismiss',
+    },
+  },
+  // Bolt 12 (EDU-3, design.md §5) — `OnboardingRulesScreen`'s new body.
+  // `rulesStepTitle`/`rulesStepDescription` mirror betmeet-clone's own
+  // `onboarding.*` keys; `rulesStepReviewLater` replaces `rulesStepLink`'s
+  // web wording (design.md §5.1 — an informational line, not a tappable
+  // cross-tree link, per ADR-001's guard mechanics).
+  onboarding: {
+    rulesStepTitle: 'Learn how to play',
+    rulesStepDescription:
+      'This is how points are awarded. You can check the full rules whenever you want.',
+    rulesStepReviewLater: 'You can open the full Rules Center anytime from Home.',
+  },
+  // Bolt 13 (ADMIN-1..5, design.md §8, ADR-058/062) — the `admin` remote's
+  // own copy. Deliberately blunt/honest per the checkpoint's explicit
+  // instruction (ADR-058's "Rescoring sweep", not "Sync"; ADR-062's
+  // "currently the only way a match becomes finished with scores").
+  admin: {
+    screens: {
+      adminHome: 'Admin',
+      sweepStatus: 'Rescoring sweep',
+      forceResult: 'Force match result',
+      revertOverride: 'Revert override',
+    },
+    home: {
+      title: 'Admin',
+      loading: 'Checking access…',
+      accessDenied: "You don't have access to this section.",
+      sweepButton: 'Rescoring sweep',
+      forceResultButton: 'Force match result',
+      revertOverrideButton: 'Revert override',
+    },
+    sweep: {
+      title: 'Rescoring sweep',
+      description:
+        "Checks for finished matches that haven't been scored yet and scores them. This app has no connection to any external results feed — this does not fetch new match data.",
+      lastRunLabel: 'Last run',
+      neverRun: 'Never run',
+      matchesScoredLabel: 'Matches scored in that run',
+      triggerButton: 'Re-check for unscored finished matches',
+      loading: 'Loading sweep status…',
+      error: 'Could not load the sweep status.',
+    },
+    forceResult: {
+      title: 'Force match result',
+      description:
+        'This app has no automatic results feed. Forcing a result here is currently the only way a match becomes finished with scores.',
+      selectMatch: 'Select a match',
+      homeScore: 'Home score',
+      awayScore: 'Away score',
+      penaltyShootout: 'Penalty shootout',
+      homePenaltyScore: 'Home penalty score',
+      awayPenaltyScore: 'Away penalty score',
+      penaltyWinner: 'Wins on penalties',
+      reasonLabel: 'Reason (required)',
+      reasonPlaceholder: 'Explain why this result is being forced…',
+      submitButton: 'Force result',
+      loading: 'Loading matches…',
+      error: 'Could not load matches.',
+      empty: 'No matches with both teams resolved yet.',
+      success: 'Result forced and predictions rescored.',
+      errors: {
+        FORBIDDEN: "You don't have access to this action.",
+        NOT_FOUND: 'Match not found.',
+        TEAMS_NOT_RESOLVED: 'Both teams must be resolved before forcing a result.',
+        VALIDATION_FAILED: 'Check the entered scores and reason.',
+        PENALTY_WINNER_MISMATCH: 'The penalty winner does not match the entered shootout score.',
+      },
+    },
+    revertOverride: {
+      title: 'Revert override',
+      selectMatch: 'Select a match',
+      currentResult: 'Current forced result',
+      overriddenBy: 'Overridden by',
+      reason: 'Reason',
+      warning:
+        'This cannot be undone. No results feed will repopulate this match — reverting deletes every prediction score for it.',
+      confirmLabel: "Type this match's FIFA codes to confirm: {{codes}}",
+      confirmPlaceholder: 'ARG-FRA',
+      submitButton: 'Revert override',
+      loading: 'Loading matches…',
+      error: 'Could not load matches.',
+      empty: 'No matches with an active override.',
+      success: 'Override reverted.',
+      errors: {
+        FORBIDDEN: "You don't have access to this action.",
+        NOT_FOUND: 'Match not found.',
+        NOT_OVERRIDDEN: 'This match has no active override.',
+      },
+    },
+    matchList: {
+      knockout: 'Knockout',
+      unresolved: 'Teams not resolved yet',
+    },
   },
 } as const;

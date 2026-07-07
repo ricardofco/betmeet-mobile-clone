@@ -52,8 +52,10 @@ export type MainTabParamList = {
   RankingsTab: undefined;
 };
 
+/** Bolt 12 (ADR-053) — `Education` is a real push, not a tab-root sibling. */
 export type HomeStackParamList = {
   Home: undefined;
+  Education: undefined;
 };
 
 export type PredictionsStackParamList = {
@@ -79,6 +81,9 @@ export type SettingsStackParamList = {
   TotpEnrollment: undefined;
   /** Bolt 8 (AUTH-6). */
   DeleteAccount: undefined;
+  /** Bolt 13 (ADMIN-1..5, ADR-057/059) — mounts the entire `admin` remote,
+   * same shape as `Pools`/`Education` mounting their own remotes. */
+  Admin: undefined;
 };
 
 export type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';

@@ -9,6 +9,7 @@
     "start": "react-native start",
     "start:education": "react-native start --config rspack.config.education-remote.mjs --port 8082",
     "start:pools": "react-native start --config rspack.config.pools-remote.mjs --port 8083",
+    "start:admin": "react-native start --config rspack.config.admin-remote.mjs --port 8084",
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },

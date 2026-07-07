@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Home, Target, Trophy, Users } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { renderHeaderMenuButton } from '@/host/navigation/components/header-menu-button';
+import { EducationScreen } from '@/host/navigation/screens/education-screen';
 import { HomeScreen } from '@/host/navigation/screens/home-screen';
 import { PoolsTabScreen } from '@/host/navigation/screens/pools-tab-screen';
 import { PredictionsScreen } from '@/host/predictions/screens/predictions-screen';
@@ -90,6 +91,14 @@ function HomeStackNavigator() {
         name="Home"
         component={HomeScreen}
         options={{ title: t('navigation.tabs.home'), headerLeft: renderHeaderMenuButton }}
+      />
+      {/* Bolt 12 (ADR-053) — a real push, not a tab root: no `headerLeft`
+          menu button (this isn't a tab-root screen), a native back button is
+          supplied automatically by the stack. */}
+      <HomeStack.Screen
+        name="Education"
+        component={EducationScreen}
+        options={{ title: t('rules.centerTitle') }}
       />
     </HomeStack.Navigator>
   );

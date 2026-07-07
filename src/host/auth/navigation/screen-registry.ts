@@ -31,6 +31,10 @@ import type { ScreenClass } from '@/domain/auth/screen-class';
  *
  * Bolt 10 addition (design.md §7.1, ADR-048): `Rankings` gets the same
  * `protected` tag — the 4th top-level tab, hosted (not a remote).
+ *
+ * Bolt 12 addition (design.md §6.3, ADR-053): `Education` gets the same
+ * `protected` tag — a route nested inside `HomeStack` (a real push, not a
+ * tab root or a new top-level tree) that mounts the `education` remote.
  */
 export const SCREEN_REGISTRY = {
   // ── Unauthenticated / auth-only ──
@@ -56,6 +60,8 @@ export const SCREEN_REGISTRY = {
   Pools: ['protected'] as ScreenClass,
   /** Bolt 10 (ADR-048) — same tag as Home/Predictions/Pools. */
   Rankings: ['protected'] as ScreenClass,
+  /** Bolt 12 (ADR-053) — same tag as Home/Predictions/Pools/Rankings. */
+  Education: ['protected'] as ScreenClass,
 
   // ── Settings area (Bolt 2 + Bolt 3) ──
   AccountSettings: ['protected'] as ScreenClass,
@@ -67,6 +73,19 @@ export const SCREEN_REGISTRY = {
   TotpEnrollment: ['protected'] as ScreenClass,
   /** Bolt 8 (AUTH-6) — same `protected` tag as every other Settings row. */
   DeleteAccount: ['protected'] as ScreenClass,
+  /**
+   * Bolt 13 (ADMIN-1, design.md §2.1, ADR-059) — same `protected` tag as
+   * every other Settings row. Deliberately NOT a new `admin` `ScreenClass`
+   * tag: `evaluateGuard()` is a pure function over the JWT-claim-shaped
+   * `AuthClaims` store, and `verificationStatus` is a DB-column re-check,
+   * not a JWT claim (model.md §2) — extending the six-rule gate for one
+   * Settings row would be a disproportionate structural change. The real
+   * admin-only gating happens inside the Admin surface itself
+   * (`useAdminAccessQuery()` + the `admin` remote's own mount-time
+   * re-check) and, authoritatively, server-side (`requireAdmin()` on every
+   * `admin.*` capability).
+   */
+  Admin: ['protected'] as ScreenClass,
 } as const;
 
 export type RegisteredRouteName = keyof typeof SCREEN_REGISTRY;

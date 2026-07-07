@@ -8,5 +8,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["**/node_modules", "**/Pods", "**/build"]
+  "exclude": ["**/node_modules", "**/Pods", "**/build", "backend"]
 }

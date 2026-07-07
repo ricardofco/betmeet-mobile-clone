@@ -5,6 +5,7 @@ import { Image, StyleSheet } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import type { SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
 import { useProfileQuery } from '@/host/profile/hooks/use-profile-query';
+import { useAdminAccessQuery } from '@/host/settings/hooks/use-admin-access-query';
 import { Heading, MutedText, Screen } from '@/shared/design/primitives';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'AccountSettings'>;
@@ -33,6 +34,11 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'AccountSettings'>;
 export function AccountSettingsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { data: profile } = useProfileQuery();
+  // ADMIN-1 (design.md §2.2 point 1, ADR-059) — advisory-only visibility
+  // check; while loading, the row simply isn't rendered (no flash of a
+  // wrong state), same "don't show, don't guess" discipline
+  // `pool-detail-screen.tsx`'s conditional-button pattern already uses.
+  const { data: adminAccess } = useAdminAccessQuery();
 
   const handleChangeNickname = useCallback(() => {
     navigation.navigate('ChangeNickname');
@@ -62,6 +68,10 @@ export function AccountSettingsScreen({ navigation }: Props) {
     navigation.navigate('DeleteAccount');
   }, [navigation]);
 
+  const handleOpenAdmin = useCallback(() => {
+    navigation.navigate('Admin');
+  }, [navigation]);
+
   return (
     <Screen gap="$0" padding="$0">
       <YStack padding="$4" gap="$0">
@@ -89,6 +99,13 @@ export function AccountSettingsScreen({ navigation }: Props) {
         <Row label={t('settings.rows.changeEmail')} onPress={handleChangeEmail} />
         <Row label={t('settings.rows.twoFactor')} onPress={handleTotpEnrollment} />
         <Row label={t('settings.rows.deleteAccount')} onPress={handleDeleteAccount} danger />
+
+        {/* ADMIN-1 (design.md §10) — genuinely invisible to the ~100% of
+            users who aren't the seeded ADMIN account; not rendered at all
+            while the check is pending or resolves false. */}
+        {adminAccess?.isAdmin ? (
+          <Row label={t('settings.rows.admin')} onPress={handleOpenAdmin} />
+        ) : null}
       </YStack>
     </Screen>
   );

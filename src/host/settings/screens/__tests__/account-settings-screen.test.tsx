@@ -1,9 +1,11 @@
 import { screen, userEvent } from '@testing-library/react-native';
 import { AccountSettingsScreen } from '@/host/settings/screens/account-settings-screen';
 import { profileApi } from '@/platform/backend-api/profile-api';
+import { adminApi } from '@/platform/backend-api/admin-api';
 import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 
 jest.mock('@/platform/backend-api/profile-api');
+jest.mock('@/platform/backend-api/admin-api');
 
 function buildProps(navigate = jest.fn()) {
   return {
@@ -14,6 +16,7 @@ function buildProps(navigate = jest.fn()) {
 
 describe('AccountSettingsScreen', () => {
   const mockedGetProfile = profileApi.getProfile as jest.MockedFunction<typeof profileApi.getProfile>;
+  const mockedCheckAccess = adminApi.checkAccess as jest.MockedFunction<typeof adminApi.checkAccess>;
 
   beforeEach(() => {
     mockedGetProfile.mockReset();
@@ -23,6 +26,10 @@ describe('AccountSettingsScreen', () => {
       locale: 'es',
       cooldown: { onboardingCompleted: true, postOnboardingChangeCount: 0, lastChangeAt: null, now: '' },
     });
+    mockedCheckAccess.mockReset();
+    // ADMIN-1 (design.md §2.2 point 1) — defaults every pre-existing test in
+    // this file to the ~100% case (not an admin), same as production.
+    mockedCheckAccess.mockResolvedValue({ isAdmin: false });
   });
 
   it('renders the Profile and Account settings rows', async () => {
@@ -104,5 +111,36 @@ describe('AccountSettingsScreen', () => {
 
     await user.press(screen.getByText('Delete account'));
     expect(navigate).toHaveBeenCalledWith('DeleteAccount');
+  });
+
+  // ADMIN-1 (design.md §2.2 point 1/§10, ADR-059) — the Settings-row
+  // visibility check. Advisory-only (the real gate is server-side), but
+  // genuinely invisible to the ~100% of users who aren't the seeded ADMIN
+  // account, and genuinely present + functional for the one who is.
+  it('does NOT render the Admin row for a non-admin account (the default/common case)', async () => {
+    await renderWithQueryClient(<AccountSettingsScreen {...buildProps()} />);
+    await screen.findByText('astro#1234');
+
+    expect(screen.queryByText('Admin')).not.toBeOnTheScreen();
+  });
+
+  it('does not render the Admin row while the access check is still pending (no flash of a wrong state)', async () => {
+    mockedCheckAccess.mockReturnValue(new Promise(() => {}));
+    await renderWithQueryClient(<AccountSettingsScreen {...buildProps()} />);
+    await screen.findByText('astro#1234');
+
+    expect(screen.queryByText('Admin')).not.toBeOnTheScreen();
+  });
+
+  it('renders the Admin row for an admin account, and navigates to Admin when pressed', async () => {
+    mockedCheckAccess.mockResolvedValue({ isAdmin: true });
+    const navigate = jest.fn();
+    const user = userEvent.setup();
+    await renderWithQueryClient(<AccountSettingsScreen {...buildProps(navigate)} />);
+    await screen.findByText('astro#1234');
+
+    expect(await screen.findByText('Admin')).toBeOnTheScreen();
+    await user.press(screen.getByText('Admin'));
+    expect(navigate).toHaveBeenCalledWith('Admin');
   });
 });

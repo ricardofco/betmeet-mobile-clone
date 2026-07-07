@@ -15,10 +15,14 @@ import {
   transferSinglePoolOwnership,
   transferOwnedPoolsForAccountDeletion,
 } from '../services/account-deletion';
-import { computeScore } from '../services/scoring/compute-score';
+import { computeScore, derivePenaltyWinner } from '../services/scoring/compute-score';
 import { sweepFinishedUnscoredMatches } from '../services/scoring/score-sweeper';
+import { getSweepStatus } from '../services/scoring/sweep-status';
+import { scoreMatch } from '../services/scoring/score-match';
 import { resolvePointsStatus } from '../services/scoring/resolve-points';
 import { resolveEffectivePredictions } from '../services/pool-leaderboard-aggregation';
+import { requireAdmin } from '../services/admin/require-admin';
+import { validateForceResultScoreBounds, validatePenaltyScoreShape } from '../services/admin/force-result-validation';
 import type { AuthedRequest } from '../middleware/auth';
 
 type Auth = AuthedRequest['auth'];
@@ -1207,6 +1211,235 @@ const getPoolLeaderboard: Handler = async (auth, body) => {
 };
 
 // ---------------------------------------------------------------------------
+// admin.* — Bolt 13 addition (ADMIN-1..5, design.md §2/§3/§6, ADR-057..062)
+//
+// Every handler below except `checkAccess` independently re-verifies
+// `requireAdmin(auth.userId)` on every single call — a fresh DB read, never
+// cached, never trusting the client's own gate (ADR-059's permanent
+// instruction, same class as ADR-023/ADR-038). `checkAccess` itself is the
+// one exception: it's the capability that ANSWERS "am I admin," so it's
+// callable by any authenticated user and never returns an `{ok:false}`
+// shape (design.md §3.1).
+// ---------------------------------------------------------------------------
+
+/** ADMIN-1 (design.md §3, ADR-059) — never returns `{ok:false}`; the
+ * interesting information IS the boolean, not a rejection. */
+const checkAdminAccess: Handler = async auth => {
+  const isAdmin = await requireAdmin(auth.userId);
+  return { isAdmin };
+};
+
+/** ADMIN-2/3 merged read (design.md §1.2, ADR-058) — reads the in-process
+ * tracker fed by `sweepFinishedUnscoredMatches()` itself, never triggers a
+ * sweep on its own. */
+const getScoringSweepStatus: Handler = async auth => {
+  if (!(await requireAdmin(auth.userId))) return { ok: false, error: 'FORBIDDEN' as const };
+  const status = getSweepStatus();
+  return {
+    ok: true,
+    lastRunAt: status.lastRunAt ? status.lastRunAt.toISOString() : null,
+    lastSweptCount: status.lastSweptCount,
+  };
+};
+
+/** ADMIN-3, narrowed (design.md §1.2, ADR-058) — a thin, honestly-labeled
+ * wrapper around the SAME `sweepFinishedUnscoredMatches()` every read
+ * endpoint already calls silently (ADR-050). No football-data.org client,
+ * no scheduler, no `provider_sync_runs` writer — this is not a real sync. */
+const triggerScoringSweep: Handler = async auth => {
+  if (!(await requireAdmin(auth.userId))) return { ok: false, error: 'FORBIDDEN' as const };
+  const sweptCount = await sweepFinishedUnscoredMatches();
+  const status = getSweepStatus();
+  return { ok: true, sweptCount, ranAt: (status.lastRunAt ?? new Date()).toISOString() };
+};
+
+/** ADMIN-4/5's match picker (design.md §6/§6.1, ADR-060) — a fully separate,
+ * admin-gated capability, deliberately never an extension of
+ * `competition.getFixture` (that public read must stay provably unaffected
+ * by this bolt — see ADR-060's Consequences). */
+const listMatchesForAdmin: Handler = async auth => {
+  if (!(await requireAdmin(auth.userId))) return { ok: false, error: 'FORBIDDEN' as const };
+
+  const matches = await prisma.match.findMany({
+    include: { homeTeam: true, awayTeam: true, phase: true },
+    orderBy: { kickoffAt: 'asc' },
+  });
+
+  const overriddenByIds = [
+    ...new Set(matches.map(m => m.overridden_by_user_id).filter((id): id is string => id !== null)),
+  ];
+  const overriders = overriddenByIds.length
+    ? await prisma.profile.findMany({
+        where: { id: { in: overriddenByIds } },
+        select: { id: true, nicknameBase: true, nicknameDiscriminator: true },
+      })
+    : [];
+  const overriderById = new Map(overriders.map(p => [p.id, p]));
+
+  return {
+    ok: true,
+    matches: matches.map(m => ({
+      id: m.id,
+      fifaHome: m.homeTeam?.fifaCode ?? null,
+      fifaAway: m.awayTeam?.fifaCode ?? null,
+      homeTeamId: m.homeTeamId,
+      awayTeamId: m.awayTeamId,
+      bothTeamsResolved: m.homeTeamId !== null && m.awayTeamId !== null,
+      isKnockout: m.phase.type === 'KNOCKOUT',
+      kickoffAt: m.kickoffAt ? m.kickoffAt.toISOString() : null,
+      status: m.status,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      homePenaltyScore: m.homePenaltyScore,
+      awayPenaltyScore: m.awayPenaltyScore,
+      winnerTeamId: m.winnerTeamId,
+      manualOverride: m.manual_override,
+      manualOverrideReason: m.manual_override_reason,
+      overriddenByNickname: m.overridden_by_user_id
+        ? nicknameOf(overriderById.get(m.overridden_by_user_id))
+        : null,
+      overriddenAt: m.overridden_at ? m.overridden_at.toISOString() : null,
+    })),
+  };
+};
+
+/**
+ * ADMIN-4 — force match result (design.md §6.2, model.md §5, BR-7.2/7.3/7.4/
+ * 7.5/7.16). Order, exactly as design.md §6.2 specifies: requireAdmin →
+ * NOT_FOUND → TEAMS_NOT_RESOLVED → score-bounds/reason VALIDATION_FAILED →
+ * penalty-winner-rule VALIDATION_FAILED → PENALTY_WINNER_MISMATCH (only if
+ * penalty scores were also supplied) → resolve winner → atomic Match update
+ * → synchronous `scoreMatch(matchId)` (Bolt 10, unchanged).
+ */
+const forceMatchResult: Handler = async (auth, body) => {
+  if (!(await requireAdmin(auth.userId))) return { ok: false, error: 'FORBIDDEN' as const };
+
+  const matchId = String(body?.matchId ?? '');
+  const homeScore = Number(body?.homeScore);
+  const awayScore = Number(body?.awayScore);
+  const homePenaltyScore: number | null =
+    body?.homePenaltyScore === undefined || body?.homePenaltyScore === null ? null : Number(body.homePenaltyScore);
+  const awayPenaltyScore: number | null =
+    body?.awayPenaltyScore === undefined || body?.awayPenaltyScore === null ? null : Number(body.awayPenaltyScore);
+  const penaltyWinnerTeamId: string | null = body?.penaltyWinnerTeamId ?? null;
+  const reason = String(body?.reason ?? '').trim();
+
+  const match = await prisma.match.findUnique({ where: { id: matchId }, include: { phase: true } });
+  if (!match) return { ok: false, error: 'NOT_FOUND' as const };
+
+  // BR-7.4 — cannot force a result onto an unresolved knockout placeholder.
+  if (!match.homeTeamId || !match.awayTeamId) {
+    return { ok: false, error: 'TEAMS_NOT_RESOLVED' as const };
+  }
+
+  if (!validateForceResultScoreBounds(homeScore, awayScore)) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+  if (reason.length < 1 || reason.length > 500) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+  if (homePenaltyScore !== null && !validatePenaltyScoreShape(homePenaltyScore)) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+  if (awayPenaltyScore !== null && !validatePenaltyScoreShape(awayPenaltyScore)) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+
+  const isKnockout = match.phase.type === 'KNOCKOUT';
+  const penaltyWinnerLabel = penaltyWinnerFromTeamId(penaltyWinnerTeamId, match.homeTeamId, match.awayTeamId);
+  if (!validatePenaltyWinnerRule(isKnockout, homeScore, awayScore, penaltyWinnerLabel)) {
+    return { ok: false, error: 'VALIDATION_FAILED' as const };
+  }
+
+  // BR-7.16 — if penalty scores were ALSO supplied, the server independently
+  // derives the winner from them and rejects a contradicting submitted
+  // `penaltyWinnerTeamId`. The admin cannot supply a winner that disagrees
+  // with the shootout score they themselves entered.
+  if (homePenaltyScore !== null && awayPenaltyScore !== null) {
+    const derivedWinner = derivePenaltyWinner(homePenaltyScore, awayPenaltyScore);
+    const derivedWinnerTeamId =
+      derivedWinner === 'home' ? match.homeTeamId : derivedWinner === 'away' ? match.awayTeamId : null;
+    if (derivedWinnerTeamId !== penaltyWinnerTeamId) {
+      return { ok: false, error: 'PENALTY_WINNER_MISMATCH' as const };
+    }
+  }
+
+  // Winner resolution: score comparison first; a tied knockout falls back to
+  // the already-validated `penaltyWinnerTeamId`; a tied non-knockout has no
+  // winner (a real, valid group-stage draw).
+  let resolvedWinnerTeamId: string | null;
+  if (homeScore !== awayScore) {
+    resolvedWinnerTeamId = homeScore > awayScore ? match.homeTeamId : match.awayTeamId;
+  } else if (isKnockout) {
+    resolvedWinnerTeamId = penaltyWinnerTeamId;
+  } else {
+    resolvedWinnerTeamId = null;
+  }
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      homeScore,
+      awayScore,
+      // Penalty scores forced null unless knockout, even if supplied.
+      homePenaltyScore: isKnockout ? homePenaltyScore : null,
+      awayPenaltyScore: isKnockout ? awayPenaltyScore : null,
+      winnerTeamId: resolvedWinnerTeamId,
+      status: 'FINISHED',
+      manual_override: true,
+      manual_override_reason: reason,
+      overridden_by_user_id: auth.userId,
+      overridden_at: new Date(),
+    },
+  });
+
+  // Synchronously, not queued — every prediction on this match gets a
+  // freshly-computed PredictionScore row immediately (BR-7.5).
+  await scoreMatch(matchId);
+
+  return { ok: true };
+};
+
+/**
+ * ADMIN-5 — revert match override (design.md §6.2, model.md §6, BR-7.8/7.9).
+ * Clears the manually-entered result + all audit fields, resets `status` to
+ * `SCHEDULED`, then synchronously re-invokes `scoreMatch(matchId)` — no
+ * longer scoreable, so its existing not-scoreable-anymore branch DELETES
+ * every `PredictionScore` row for this match instead of computing new ones
+ * (`score-match.ts:45-48`, unchanged). No snapshot of the prior result is
+ * kept — this mobile backend has no sync to ever repopulate a real result
+ * afterward (model.md §6, ADR-061's context).
+ */
+const revertMatchOverride: Handler = async (auth, body) => {
+  if (!(await requireAdmin(auth.userId))) return { ok: false, error: 'FORBIDDEN' as const };
+
+  const matchId = String(body?.matchId ?? '');
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) return { ok: false, error: 'NOT_FOUND' as const };
+  if (!match.manual_override) return { ok: false, error: 'NOT_OVERRIDDEN' as const };
+
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      homeScore: null,
+      awayScore: null,
+      homePenaltyScore: null,
+      awayPenaltyScore: null,
+      winnerTeamId: null,
+      status: 'SCHEDULED',
+      manual_override: false,
+      manual_override_reason: null,
+      overridden_by_user_id: null,
+      overridden_at: null,
+    },
+  });
+
+  await scoreMatch(matchId);
+
+  return { ok: true };
+};
+
+// ---------------------------------------------------------------------------
 // auth.* — Bolt 8 addition (AUTH-6, design.md §3.1/ADR-039/ADR-040)
 // ---------------------------------------------------------------------------
 
@@ -1276,4 +1509,10 @@ export const handlers: Record<string, Handler> = {
   'pools.getMemberPredictions': getMemberPredictions,
   'rankings.getGlobalRanking': getGlobalRanking,
   'rankings.getPoolLeaderboard': getPoolLeaderboard,
+  'admin.checkAccess': checkAdminAccess,
+  'admin.getScoringSweepStatus': getScoringSweepStatus,
+  'admin.triggerScoringSweep': triggerScoringSweep,
+  'admin.listMatches': listMatchesForAdmin,
+  'admin.forceMatchResult': forceMatchResult,
+  'admin.revertMatchOverride': revertMatchOverride,
 };

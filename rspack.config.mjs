@@ -95,6 +95,10 @@ export default Repack.defineRspackConfig((env) => {
           // Bolt 7 (ADR-032) — the second real MF remote (first feature remote,
           // not a demo shell).
           pools: `pools@http://localhost:8083/${platform}/mf-manifest.json`,
+          // Bolt 13 (ADR-057) — the third real MF remote, first genuinely
+          // freestanding one (no existing screen anywhere pulls toward host
+          // or another remote).
+          admin: `admin@http://localhost:8084/${platform}/mf-manifest.json`,
         },
         dts: false,
         // Host shares its singletons EAGER so they load with the host bundle (ADR-002).
@@ -176,12 +180,22 @@ function sharedDeps(pkg, { eager }) {
     // screens consume both directly (bolt-plan.md's Bolt-5-8 retrofit
     // scope), so a duplicated instance in the remote would create a second,
     // disconnected theme/translation-state context — same risk class as the
-    // React-Query/react-native-svg incidents above. NOT added to the
-    // `education` remote's config (not retrofitted this bolt, still Bolt 0's
-    // demo shell — re-audit if a future bolt gives it real screens).
+    // React-Query/react-native-svg incidents above.
+    // Bolt 12 (ADR-052): the `education` remote now ALSO consumes both
+    // directly (its first real, non-demo-shell screens) — added to
+    // `rspack.config.education-remote.mjs` too, same reasoning.
     tamagui: dep('tamagui'),
     i18next: dep('i18next'),
     'react-i18next': dep('react-i18next'),
+    // Bolt 12 (ADR-056) — the FIRST time any Module Federation *remote* (not
+    // just the host) consumes `AsyncStorage` (EDU-4's dismissible-cue
+    // storage, `src/platform/education/cue-store.ts`). Added defensively,
+    // proactively, before hitting a double-registration crash on-device —
+    // the same `react-native-svg` lesson Bolt 8 learned the hard way.
+    // `singleton: true` here is what makes this safe: without it, the
+    // `education` remote would register its own separate native module
+    // binding instead of resolving to the host's already-initialized one.
+    '@react-native-async-storage/async-storage': dep('@react-native-async-storage/async-storage'),
     // Post-Implement fix (Layer 2 finding #1, new ADR-047) — tab-bar icons.
     // Host-only: only `main-tab-navigator.tsx`'s tab bar uses icons; this
     // bolt's `pools`-remote design polish (finding #4) used existing Tamagui

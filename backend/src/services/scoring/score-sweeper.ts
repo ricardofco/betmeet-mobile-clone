@@ -1,5 +1,6 @@
 import { prisma } from '../../db';
 import { scoreMatch } from './score-match';
+import { recordSweepRun } from './sweep-status';
 
 /**
  * The lazy-sweep backstop (ADR-050) — this backend has no competition-sync
@@ -27,6 +28,13 @@ export async function sweepFinishedUnscoredMatches(): Promise<number> {
   for (const match of staleMatches) {
     await scoreMatch(match.id);
   }
+
+  // Bolt 13 (design.md §1.2/ADR-058) — one additive line, right before the
+  // existing return: records the TRUE last invocation of this backstop,
+  // regardless of which caller triggered it, so ADMIN-2/3's merged screen
+  // can answer "when did this app's rescoring backstop last actually run."
+  // Does not change this function's own behavior otherwise.
+  recordSweepRun(staleMatches.length);
 
   return staleMatches.length;
 }

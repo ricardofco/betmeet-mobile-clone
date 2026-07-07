@@ -11,6 +11,7 @@ import { ChangeNicknameScreen } from '@/host/profile/screens/change-nickname-scr
 import { ChangeAvatarScreen } from '@/host/profile/screens/change-avatar-screen';
 import { ChangeLocaleScreen } from '@/host/profile/screens/change-locale-screen';
 import { DeleteAccountScreen } from '@/host/settings/screens/delete-account-screen';
+import { AdminScreen } from '@/host/navigation/screens/admin-screen';
 import type { RootDrawerParamList, SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
 
 /**
@@ -79,6 +80,16 @@ function SettingsStackNavigator() {
         name="DeleteAccount"
         component={DeleteAccountScreen}
         options={{ title: t('settings.rows.deleteAccount') }}
+      />
+      {/* Bolt 13 (ADR-057) — mounts the `admin` remote; the row that pushes
+          here is itself gated by `useAdminAccessQuery()` in
+          `account-settings-screen.tsx`, but this route registration is
+          unconditional (same "route exists, entry point is gated"
+          shape as every other remote). */}
+      <SettingsStack.Screen
+        name="Admin"
+        component={AdminScreen}
+        options={{ title: t('settings.rows.admin') }}
       />
     </SettingsStack.Navigator>
   );

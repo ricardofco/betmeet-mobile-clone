@@ -1,19 +1,27 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { OnboardingScoringSummary } from '@/host/profile/components/onboarding-scoring-summary';
 import { useOnboardingWizardContext } from '@/host/profile/screens/onboarding-wizard-screen';
+import { Heading, MutedText, PrimaryButton, Screen } from '@/shared/design/primitives';
 import type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'OnboardingRules'>;
 
 /**
- * PROFILE-4's `rules` step — skippable, never blocks completion
- * (model.md §2.7, §5). The actual rules content is owned by
- * `unit-09-education` (future remote) — this screen models only the
- * step's skip/done transition, mirroring Bolt 0/Bolt 1's established
- * "reserve the seam, don't build the feature early" placeholder pattern.
+ * EDU-3's onboarding rules step (model.md §4, design.md §5) — skippable,
+ * never blocks completion. Bolt 3's wizard skip/done/advance machinery
+ * (`useOnboardingWizardContext`) is untouched; this bolt only replaces the
+ * placeholder body with real content: title/description, a static
+ * `OnboardingScoringSummary` (host's own twin of the education remote's
+ * `ScoringTable`, ADR-054), and an informational (non-tappable) line about
+ * the full Rules Center — **not** a live deep link into the `education`
+ * remote (design.md §5.1): while the onboarding guard branch is mounted,
+ * `AuthGatedNavigator` never mounts the `HomeStack`/`Education` route at all
+ * (ADR-001), so there is no screen to navigate into yet.
  */
 export function OnboardingRulesScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
   const goToNext = useCallback(() => {
@@ -34,28 +42,13 @@ export function OnboardingRulesScreen({ navigation }: Props) {
   }, [wizard, goToNext]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>League rules</Text>
-      <Text style={styles.body}>
-        Rules content is coming soon (unit-09-education). You can review it anytime from the app.
-      </Text>
-      <Button title="Got it" onPress={handleAcknowledge} />
-      <Button title="Skip for now" onPress={handleSkip} />
-    </View>
+    <Screen>
+      <Heading>{t('onboarding.rulesStepTitle')}</Heading>
+      <MutedText>{t('onboarding.rulesStepDescription')}</MutedText>
+      <OnboardingScoringSummary />
+      <MutedText>{t('onboarding.rulesStepReviewLater')}</MutedText>
+      <PrimaryButton onPress={handleAcknowledge}>{t('common.continue')}</PrimaryButton>
+      <PrimaryButton onPress={handleSkip}>{t('common.skipForNow')}</PrimaryButton>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  body: {
-    color: '#555',
-  },
-});

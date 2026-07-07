@@ -1,32 +1,31 @@
-import { lazy, useCallback, useState } from 'react';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { XStack, YStack } from 'tamagui';
-import { RemoteBoundary } from '@/host/remote-boundary';
+import { XStack } from 'tamagui';
 import { Card, Heading, MutedText, PrimaryButton, Screen } from '@/shared/design/primitives';
+import type { HomeStackParamList } from '@/host/auth/navigation/auth-stack-params';
 
-// Loaded lazily so the host bundle never pays for the remote's code until
-// the user actually requests it (ADR-002) — unchanged from Bolts 0-8.
-const EducationRemoteApp = lazy(() => import('education/App'));
+type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
 /**
  * Bolt 9 (ADR-042): the 3-button hub role (Predictions/Pools/Settings
- * buttons) is removed — redundant with the new tab bar/drawer. Becomes a
- * minimal, Tamagui-styled real landing screen. The Bolt-0 "load `education`
- * remote" demo affordance is kept (relocated, not deleted) — still the only
- * exercised path proving `RemoteBoundary`'s fallback UI (Bolt 0's still-open
- * Layer 2 item).
+ * buttons) is removed — redundant with the new tab bar/drawer. A minimal,
+ * Tamagui-styled real landing screen.
+ *
+ * Bolt 12 (ADR-053): the Bolt-0 "load `education` remote" demo affordance
+ * (an inline `showRemote` toggle rendering `RemoteBoundary` right here) is
+ * replaced by a real `navigation.navigate('Education')` push — the lazy-
+ * import + `RemoteBoundary` mechanism itself is relocated to
+ * `education-screen.tsx`, not deleted (design.md §6.3). The still-open Layer
+ * 2 item (kill the remote's dev server mid-session, confirm the retry UI)
+ * now exercises against that new pushed screen instead of this inline block.
  */
-export function HomeScreen() {
+export function HomeScreen({ navigation }: Props) {
   const { t } = useTranslation();
-  const [showRemote, setShowRemote] = useState(false);
 
-  const handleLoadRemote = useCallback(() => {
-    setShowRemote(true);
-  }, []);
-
-  const handleRetryRemote = useCallback(() => {
-    setShowRemote(false);
-  }, []);
+  const handleOpenRulesCenter = useCallback(() => {
+    navigation.navigate('Education');
+  }, [navigation]);
 
   return (
     <Screen>
@@ -34,16 +33,9 @@ export function HomeScreen() {
       <Card>
         <MutedText>{t('home.subtitle')}</MutedText>
         <XStack justifyContent="flex-start">
-          <PrimaryButton onPress={handleLoadRemote}>{t('home.loadEducationRemote')}</PrimaryButton>
+          <PrimaryButton onPress={handleOpenRulesCenter}>{t('home.openRulesCenter')}</PrimaryButton>
         </XStack>
       </Card>
-      {showRemote ? (
-        <YStack minHeight={80}>
-          <RemoteBoundary onRetry={handleRetryRemote}>
-            <EducationRemoteApp />
-          </RemoteBoundary>
-        </YStack>
-      ) : null}
     </Screen>
   );
 }

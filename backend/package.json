@@ -18,6 +18,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed:competition": "tsx src/scripts/seed-competition.ts",
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
     "test": "jest"
   },
   "dependencies": {

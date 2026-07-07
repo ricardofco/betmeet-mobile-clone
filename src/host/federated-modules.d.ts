@@ -17,3 +17,10 @@ declare module 'pools/App' {
   const PoolsRemoteApp: ComponentType;
   export default PoolsRemoteApp;
 }
+
+// Bolt 13 (ADR-057) — the `admin` remote, third real MF remote.
+declare module 'admin/App' {
+  import type { ComponentType } from 'react';
+  const AdminRemoteApp: ComponentType;
+  export default AdminRemoteApp;
+}
