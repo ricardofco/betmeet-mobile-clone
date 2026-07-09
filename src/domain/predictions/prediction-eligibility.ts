@@ -79,19 +79,22 @@ export function getPredictionEligibility(match: EligibilityMatchInput, now: stri
   return { editable: true };
 }
 
-const REASON_LABEL: Record<PredictionLockReason, string> = {
-  MATCH_NOT_EDITABLE: 'Not available yet',
-  KICKOFF_REACHED: 'Locked — kickoff has passed',
-  CANCELLED: 'Match cancelled',
-  POSTPONED: 'Match postponed',
-  MATCH_STATUS_LOCKED: 'Locked',
+const REASON_KEY: Record<PredictionLockReason, string> = {
+  MATCH_NOT_EDITABLE: 'matchNotEditable',
+  KICKOFF_REACHED: 'kickoffReached',
+  CANCELLED: 'cancelled',
+  POSTPONED: 'postponed',
+  MATCH_STATUS_LOCKED: 'matchStatusLocked',
 };
 
 /**
  * The only place `PredictionLockReason` display copy is defined
  * (mirrors `describeMatchStatus`'s single-source-of-labels pattern in
- * `domain/competition/match-status.ts`).
+ * `domain/competition/match-status.ts`). Change-2026-07-08 (follow-up):
+ * returns an i18n key suffix under `predictions.lockReason.*`, not a literal
+ * English string — this module stays framework-free, callers translate it
+ * themselves (`t(\`predictions.lockReason.${describeLockReason(reason)}\`)`).
  */
 export function describeLockReason(reason: PredictionLockReason): string {
-  return REASON_LABEL[reason];
+  return REASON_KEY[reason];
 }

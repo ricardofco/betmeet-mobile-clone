@@ -1,8 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
 import { SignInScreen } from '@/host/auth/screens/sign-in-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import type { AuthStackParamList } from '@/host/auth/navigation/auth-stack-params';
 
 jest.mock('@/platform/supabase/supabase-adapter');
@@ -13,8 +14,14 @@ function NullScreen() {
   return null;
 }
 
+// Change-2026-07-08 (i18n completion): `SignInScreen` now calls
+// `useTranslation()` — reuses the host's existing `renderWithQueryClient`
+// test helper (already relied on by several host test suites outside
+// `profile/`, e.g. `account-settings-screen.test.tsx`) purely for its
+// `I18nextProvider`/`TamaguiProvider` wrapping, forcing English so this
+// suite's existing literal-string assertions keep passing unmodified.
 function renderSignInScreen() {
-  return render(
+  return renderWithQueryClient(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="SignIn" component={SignInScreen} />

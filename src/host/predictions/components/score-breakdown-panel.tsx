@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ScoreBreakdown } from '@/shared/scoring';
 
@@ -6,11 +7,11 @@ type ScoreBreakdownPanelProps = {
   breakdown: ScoreBreakdown;
 };
 
-const OUTCOME_LABEL: Record<ScoreBreakdown['matchedCase'], string> = {
-  EXACT: 'Exact score',
-  RESULT: 'Correct result',
-  PARTIAL: 'Partially correct',
-  MISS: 'Missed',
+const OUTCOME_LABEL_KEY: Record<ScoreBreakdown['matchedCase'], string> = {
+  EXACT: 'predictions.scoreBreakdown.exact',
+  RESULT: 'predictions.scoreBreakdown.result',
+  PARTIAL: 'predictions.scoreBreakdown.partial',
+  MISS: 'predictions.scoreBreakdown.miss',
 };
 
 /**
@@ -25,21 +26,30 @@ const OUTCOME_LABEL: Record<ScoreBreakdown['matchedCase'], string> = {
  * re-render once mounted for that row.
  */
 function ScoreBreakdownPanelComponent({ breakdown }: ScoreBreakdownPanelProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.outcome}>{OUTCOME_LABEL[breakdown.matchedCase]}</Text>
-        <Text style={styles.totalPoints}>{breakdown.totalPoints} pts</Text>
+        <Text style={styles.outcome}>{t(OUTCOME_LABEL_KEY[breakdown.matchedCase])}</Text>
+        <Text style={styles.totalPoints}>{t('predictions.scoreBreakdown.points', { count: breakdown.totalPoints })}</Text>
       </View>
       {breakdown.components ? (
         <View style={styles.componentsRow}>
-          <Text style={styles.componentText}>Result: +{breakdown.components.resultPoints}</Text>
-          <Text style={styles.componentText}>Home goals: +{breakdown.components.homeGoalPoints}</Text>
-          <Text style={styles.componentText}>Away goals: +{breakdown.components.awayGoalPoints}</Text>
+          <Text style={styles.componentText}>
+            {t('predictions.scoreBreakdown.resultLabel')}: +{breakdown.components.resultPoints}
+          </Text>
+          <Text style={styles.componentText}>
+            {t('predictions.scoreBreakdown.homeGoalsLabel')}: +{breakdown.components.homeGoalPoints}
+          </Text>
+          <Text style={styles.componentText}>
+            {t('predictions.scoreBreakdown.awayGoalsLabel')}: +{breakdown.components.awayGoalPoints}
+          </Text>
         </View>
       ) : null}
       {breakdown.penaltyApplied ? (
-        <Text style={styles.penaltyBonus}>Penalty-winner bonus: +{breakdown.penaltyPoints}</Text>
+        <Text style={styles.penaltyBonus}>
+          {t('predictions.scoreBreakdown.penaltyBonusLabel')}: +{breakdown.penaltyPoints}
+        </Text>
       ) : null}
     </View>
   );

@@ -10,7 +10,9 @@ import { useOnboardingWizard } from '@/host/profile/hooks/use-onboarding-wizard'
  * `result.current` reflects the freshly re-rendered hook before the next
  * call reads it — calling multiple mutations inside one `act()` block reads
  * a stale closure for everything after the first (RNTL v14 async-render
- * semantics, react-native-testing skill's "always await" rule).
+ * semantics, react-native-testing skill's "always await" rule). `advance(step, status)`
+ * itself marks the step and moves `currentStep` in one atomic `setState` —
+ * screens no longer need a separate `markDone`/`markSkipped` call before it.
  */
 describe('useOnboardingWizard (design.md §5.1)', () => {
   it('starts at the first step (nickname) with every step pending', async () => {
@@ -25,64 +27,50 @@ describe('useOnboardingWizard (design.md §5.1)', () => {
     });
   });
 
-  it('advance() is a no-op (returns null) while the required current step is still pending', async () => {
+  it('advance() is a no-op (returns null) when the required step is marked pending', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
     let outcome;
     await act(() => {
-      outcome = result.current.advance();
+      outcome = result.current.advance('nickname', 'pending');
     });
     expect(outcome).toBeNull();
     expect(result.current.currentStep).toBe('nickname');
   });
 
-  it('markDone then advance() moves to the next step in order', async () => {
+  it('advance(step, "done") marks the step done and moves to the next step in the same update — no separate markDone/advance render needed', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
-    await act(() => {
-      result.current.markDone('nickname');
-    });
     let outcome;
     await act(() => {
-      outcome = result.current.advance();
+      outcome = result.current.advance('nickname', 'done');
     });
     expect(outcome).toBe('avatar');
     expect(result.current.currentStep).toBe('avatar');
+    expect(result.current.stepStatus.nickname).toBe('done');
   });
 
-  it('a required step cannot be advanced past via markSkipped (nickname/avatar are never skippable)', async () => {
+  it('a required step cannot be advanced past via "skipped" (nickname/avatar are never skippable)', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
-    await act(() => {
-      result.current.markSkipped('nickname');
-    });
     let outcome;
     await act(() => {
-      outcome = result.current.advance();
+      outcome = result.current.advance('nickname', 'skipped');
     });
     expect(outcome).toBeNull();
     expect(result.current.currentStep).toBe('nickname');
   });
 
-  it('a skippable step (rules) can be advanced past via markSkipped', async () => {
+  it('a skippable step (rules) can be advanced past via "skipped"', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
     await act(() => {
-      result.current.markDone('nickname');
+      result.current.advance('nickname', 'done');
     });
     await act(() => {
-      result.current.advance();
-    });
-    await act(() => {
-      result.current.markDone('avatar');
-    });
-    await act(() => {
-      result.current.advance();
+      result.current.advance('avatar', 'done');
     });
     expect(result.current.currentStep).toBe('rules');
 
-    await act(() => {
-      result.current.markSkipped('rules');
-    });
     let outcome;
     await act(() => {
-      outcome = result.current.advance();
+      outcome = result.current.advance('rules', 'skipped');
     });
     expect(outcome).toBe('notifications');
   });
@@ -90,36 +78,21 @@ describe('useOnboardingWizard (design.md §5.1)', () => {
   it('advance() from the final step (second-factor) returns "complete"', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
     await act(() => {
-      result.current.markDone('nickname');
+      result.current.advance('nickname', 'done');
     });
     await act(() => {
-      result.current.advance();
+      result.current.advance('avatar', 'done');
     });
     await act(() => {
-      result.current.markDone('avatar');
+      result.current.advance('rules', 'skipped');
     });
     await act(() => {
-      result.current.advance();
-    });
-    await act(() => {
-      result.current.markSkipped('rules');
-    });
-    await act(() => {
-      result.current.advance();
-    });
-    await act(() => {
-      result.current.markSkipped('notifications');
-    });
-    await act(() => {
-      result.current.advance();
-    });
-    await act(() => {
-      result.current.markSkipped('second-factor');
+      result.current.advance('notifications', 'skipped');
     });
 
     let outcome;
     await act(() => {
-      outcome = result.current.advance();
+      outcome = result.current.advance('second-factor', 'skipped');
     });
     expect(outcome).toBe('complete');
     // The wizard's currentStep stays at the last step on "complete" — the
@@ -130,10 +103,7 @@ describe('useOnboardingWizard (design.md §5.1)', () => {
   it('goBack() moves to the previous step and returns it', async () => {
     const { result } = await renderHook(() => useOnboardingWizard());
     await act(() => {
-      result.current.markDone('nickname');
-    });
-    await act(() => {
-      result.current.advance();
+      result.current.advance('nickname', 'done');
     });
     expect(result.current.currentStep).toBe('avatar');
 

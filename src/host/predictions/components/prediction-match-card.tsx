@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { TeamBadge, LiveIndicator } from '@/shared/competition';
 import { PredictionScoreInput } from '@/host/predictions/components/prediction-score-input';
@@ -37,8 +38,8 @@ type PredictionMatchCardProps = {
   isResettingOverride: boolean;
 };
 
-function formatKickoffTime(kickoffAt: string | null): string {
-  if (!kickoffAt) return 'TBD';
+function formatKickoffTime(kickoffAt: string | null, tbdLabel: string): string {
+  if (!kickoffAt) return tbdLabel;
   return new Date(kickoffAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -70,6 +71,7 @@ function PredictionMatchCardComponent({
   onResetOverride,
   isResettingOverride,
 }: PredictionMatchCardProps) {
+  const { t } = useTranslation();
   const { match, prediction, isKnockout } = row;
 
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
@@ -167,40 +169,54 @@ function PredictionMatchCardComponent({
   // Does not touch `canShowScoreBreakdown`/`buildScoreBreakdown` above.
   const pointsStatusLabel =
     prediction?.pointsStatus === 'SCORED'
-      ? 'Scored'
+      ? t('predictions.matchCard.scored')
       : prediction?.pointsStatus === 'PENDING_SCORING'
-        ? 'Pending'
+        ? t('predictions.matchCard.pending')
         : null;
 
   const saveButtonLabel =
     selectedPoolId === null
       ? prediction
-        ? 'Update prediction'
-        : 'Save prediction'
+        ? t('predictions.matchCard.updatePrediction')
+        : t('predictions.matchCard.savePrediction')
       : overrideForSelectedPool
-        ? 'Update override'
-        : 'Save override';
+        ? t('predictions.matchCard.updateOverride')
+        : t('predictions.matchCard.saveOverride');
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.kickoff}>{formatKickoffTime(match.kickoffAt)}</Text>
+        <Text style={styles.kickoff}>{formatKickoffTime(match.kickoffAt, t('predictions.matchCard.tbd'))}</Text>
         <View style={styles.headerBadges}>
           {pointsStatusLabel ? (
             <View style={styles.pointsStatusBadge}>
               <Text style={styles.pointsStatusBadgeText}>{pointsStatusLabel}</Text>
             </View>
           ) : null}
-          {live ? <LiveIndicator /> : <Text style={styles.statusLabel}>{statusDisplay.label}</Text>}
+          {live ? (
+            <LiveIndicator />
+          ) : (
+            <Text style={styles.statusLabel}>{t(`matchStatus.${statusDisplay.labelKey}`)}</Text>
+          )}
         </View>
       </View>
 
       <View style={styles.teams}>
         <TeamBadge team={match.homeTeam} align="home" />
         <View style={styles.inputsRow}>
-          <PredictionScoreInput label="Home" value={homeScore} onChange={setHomeScore} editable={editable} />
+          <PredictionScoreInput
+            label={t('predictions.matchCard.homeLabel')}
+            value={homeScore}
+            onChange={setHomeScore}
+            editable={editable}
+          />
           <Text style={styles.separator}>–</Text>
-          <PredictionScoreInput label="Away" value={awayScore} onChange={setAwayScore} editable={editable} />
+          <PredictionScoreInput
+            label={t('predictions.matchCard.awayLabel')}
+            value={awayScore}
+            onChange={setAwayScore}
+            editable={editable}
+          />
         </View>
         <TeamBadge team={match.awayTeam} align="away" />
       </View>
@@ -219,7 +235,7 @@ function PredictionMatchCardComponent({
 
       {offerDualSave ? (
         <View style={styles.dualSaveRow}>
-          <Text style={styles.dualSaveLabel}>Also save as my global prediction</Text>
+          <Text style={styles.dualSaveLabel}>{t('predictions.matchCard.alsoSaveGlobal')}</Text>
           <Switch
             accessibilityLabel="Also save as my global prediction"
             value={dualSaveChecked}
@@ -232,13 +248,13 @@ function PredictionMatchCardComponent({
       {canReset ? (
         <Pressable accessibilityRole="button" onPress={handleReset} disabled={isResettingOverride}>
           <Text style={styles.resetText}>
-            {isResettingOverride ? 'Resetting…' : 'Use global prediction'}
+            {isResettingOverride ? t('predictions.matchCard.resetting') : t('predictions.matchCard.useGlobalPrediction')}
           </Text>
         </Pressable>
       ) : null}
 
       {!editable ? (
-        <Text style={styles.lockCopy}>{describeLockReason(eligibility.reason)}</Text>
+        <Text style={styles.lockCopy}>{t(`predictions.lockReason.${describeLockReason(eligibility.reason)}`)}</Text>
       ) : (
         <Pressable
           accessibilityRole="button"

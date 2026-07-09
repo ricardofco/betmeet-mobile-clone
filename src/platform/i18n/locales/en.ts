@@ -25,6 +25,20 @@ export const en = {
     // bilingual.
     continue: 'Continue',
     skipForNow: 'Skip for now',
+    // Change-2026-07-08 (i18n completion) — `SignInScreen`'s OR divider.
+    or: 'or',
+    // Change-2026-07-08 (follow-up) — `RemoteBoundary`'s error-boundary
+    // fallback (`src/host/remote-boundary.tsx`) is a class component (can't
+    // use `useTranslation()` directly), missed by the earlier sweep since it
+    // isn't one of the audited "screens" — it's Bolt 0 scaffolding reused by
+    // every remote (`education`/`pools`/`admin`) mount site.
+    remoteBoundaryError: "This section couldn't load.",
+    remoteBoundaryRetry: 'Tap to retry',
+    // Change-2026-07-08 (follow-up) — `LiveIndicator`'s pill badge
+    // (`src/shared/competition/components/live-indicator.tsx`), another
+    // component missed by the earlier sweep (no screen, a small shared
+    // presentational piece).
+    livePill: 'LIVE',
   },
   navigation: {
     tabs: {
@@ -40,11 +54,89 @@ export const en = {
   },
   home: {
     title: 'Liga Mundial',
-    // Bolt 12 (ADR-053): the Bolt-0 "load the federated `education` remote"
-    // demo framing is replaced — the button now pushes a real Rules Center
-    // screen, not a demo toggle.
-    subtitle: 'Host bundle is running.',
     openRulesCenter: 'Open Rules Center',
+    // Change-2026-07-08 (item 4, Home redesign) — replaces the removed
+    // `subtitle` key (Bolt-0's leftover "Host bundle is running." debug
+    // copy, never real product copy). This is the feature row's description
+    // line under `openRulesCenter`'s title.
+    rulesCenterDescription: 'Scoring rules, penalties, and a scoring calculator.',
+  },
+  // Change-2026-07-08 (i18n completion) — every host `auth` screen's own
+  // copy, previously hardcoded English never routed through `t()`.
+  auth: {
+    signIn: {
+      title: 'Sign in',
+      emailPlaceholder: 'Email',
+      passwordPlaceholder: 'Password',
+      invalidCredentials: 'Incorrect email or password.',
+      submit: 'Sign in',
+      oauthError: 'Could not open Google sign-in. Please try again.',
+      openingGoogle: 'Opening Google…',
+      signInWithGoogle: 'Sign in with Google',
+      needAccount: 'Need an account? Sign up',
+      forgotPassword: 'Forgot password?',
+    },
+    signUp: {
+      title: 'Create account',
+      emailPlaceholder: 'Email',
+      passwordPlaceholder: 'Password (min. 8 characters)',
+      genericError: 'Something went wrong. Try again.',
+      submit: 'Sign up',
+      haveAccount: 'Already have an account? Sign in',
+    },
+    forgotPassword: {
+      checkInboxTitle: 'Check your inbox',
+      sentBody: 'We sent a password-reset link to {{email}}. Tap the link in the email to set a new password.',
+      title: 'Reset your password',
+      body: 'Enter your email address and we will send you a link to reset your password.',
+      emailPlaceholder: 'Email',
+      invalidEmail: 'Enter a valid email address.',
+      error: 'Something went wrong. Please try again.',
+      submit: 'Send reset link',
+    },
+    // `ResetPasswordScreen` — the AUTH-7 rule-table placeholder route, real
+    // flow is `forgotPassword`/`setNewPassword` above (Bolt 2).
+    resetPasswordPlaceholder: {
+      comingSoon: 'Password reset is coming soon.',
+    },
+    setNewPassword: {
+      updatedTitle: 'Password updated',
+      updatedBody: 'Your password has been updated. Signing you in...',
+      title: 'Set new password',
+      body: 'Enter your new password. It must be at least 8 characters.',
+      passwordPlaceholder: 'New password',
+      error: 'Something went wrong. Please try again or request a new reset link.',
+      submit: 'Update password',
+    },
+    verifyEmail: {
+      postSignup: 'Check your email to finish signing up',
+      unconfirmedSession: 'Please verify your email to continue',
+    },
+    unconfirmedEmailPanel: {
+      resendIn: 'Resend in {{seconds}}s',
+      resendConfirmation: 'Resend confirmation',
+      sent: 'Confirmation email sent.',
+      throttled: 'Please wait before requesting another email.',
+    },
+    mfaChallenge: {
+      title: 'Two-factor authentication',
+      body: 'Enter the 6-digit code from your authenticator app to continue.',
+      codePlaceholder: '000000',
+      invalidCode: 'Incorrect code. Please check your authenticator app and try again.',
+      expired: 'Code expired. Please enter the current code from your authenticator app.',
+      error: 'Something went wrong. Please try again.',
+      verify: 'Verify',
+    },
+    // `AuthGatedNavigator`'s own native-stack header `title`s — distinct
+    // from the in-screen headings above for the same reason
+    // `settings.rows.twoFactor` differs from `settings.headers.twoFactor`.
+    screens: {
+      signIn: 'Sign in',
+      signUp: 'Create account',
+      forgotPassword: 'Forgot password',
+      setNewPassword: 'Set new password',
+      verifyEmail: 'Verify email',
+    },
   },
   settings: {
     title: 'Account settings',
@@ -68,10 +160,126 @@ export const en = {
       // of users who aren't the seeded ADMIN account (see
       // account-settings-screen.tsx's `useAdminAccessQuery()` gate).
       admin: 'Admin',
+      // Change-2026-07-08 (Omitted Requirement #3) — the first real
+      // deliberate sign-out affordance for an already-authenticated user;
+      // shares this exact key with `MfaChallengeScreen`'s own escape-hatch
+      // sign-out link so both stay worded identically.
+      signOut: 'Sign out',
     },
     headers: {
       twoFactor: 'Two-factor authentication',
     },
+    // Change-2026-07-08 (Omitted Requirement #3) — a lightweight
+    // `Alert.alert` confirm (see change record for why a full confirm
+    // screen like Delete Account's isn't warranted here).
+    signOutConfirm: {
+      title: 'Sign out?',
+      message: 'Are you sure you want to sign out?',
+    },
+    changeEmail: {
+      checkNewEmailTitle: 'Check your new email',
+      confirmationSentBody: 'We sent a confirmation link to {{email}}. Tap the link to confirm your new email address.',
+      title: 'Change email',
+      body: 'Enter your new email address. We will send a confirmation link to that address.',
+      placeholder: 'New email address',
+      genericError: 'Unable to change email. Please try again.',
+      submit: 'Send confirmation',
+    },
+    changePassword: {
+      changedTitle: 'Password changed',
+      changedBody: 'Your password has been updated successfully.',
+      title: 'Change password',
+      currentPlaceholder: 'Current password',
+      newPlaceholder: 'New password (min 8 characters)',
+      genericError: 'Unable to change password. Check your current password and try again.',
+      submit: 'Save new password',
+    },
+    deleteAccount: {
+      title: 'Delete account',
+      body: 'This is permanent and cannot be undone. Your predictions and pool history are removed and your nickname is released.',
+      transferSectionLabel: 'Transfer your pools',
+      poolsToDeleteBody: 'These pools have no other members and will be deleted: {{names}}.',
+      confirmSectionLabel: 'Confirm',
+      confirmInstruction: 'Type "{{phrase}}" to confirm.',
+      missingAssignmentError: 'Choose a new owner for every pool listed below.',
+      genericError: "Couldn't delete your account. Please try again.",
+      submit: 'Delete my account',
+    },
+    totpEnrollment: {
+      enabledTitle: 'Two-factor authentication enabled',
+      enabledBody: 'Your authenticator app is now linked. You will be asked for a code each time you sign in.',
+      failedTitle: 'Enrollment failed',
+      tryAgain: 'Try again',
+      verifyingBody: 'Verifying...',
+      scanTitle: 'Scan this QR code',
+      scanBody: 'Open your authenticator app (e.g. Google Authenticator or Authy) and scan the QR code below.',
+      manualEntryLabel: "Can't scan? Enter this code manually:",
+      codePlaceholder: 'Enter 6-digit code',
+      invalidCode: 'Incorrect code. Check your authenticator app and try again.',
+      expired: 'Code expired. Enter the current code from your authenticator app.',
+      error: 'Something went wrong. Please try again.',
+      verifyAndEnable: 'Verify and enable',
+      idleTitle: 'Enable two-factor authentication',
+      idleBody: 'Protect your account with an authenticator app. You will need to enter a 6-digit code each time you sign in.',
+      getStarted: 'Get started',
+      startError: 'Unable to start enrollment. Please try again.',
+    },
+  },
+  // Change-2026-07-08 (i18n completion) — `AvatarPicker`/`NicknameForm`
+  // (shared by onboarding + Settings) and the onboarding wizard's own
+  // per-step screens.
+  profile: {
+    avatarPicker: {
+      useGooglePhoto: 'Use Google photo',
+      uploadCustomPhoto: 'Upload a custom photo',
+      tooLarge: 'Image must be 5MB or smaller.',
+      unsupportedType: 'Only JPEG, PNG, or WebP images are supported.',
+      uploadFailed: 'Upload failed. Please try again.',
+    },
+    nicknameForm: {
+      cooldownMessage: 'You can change your nickname again on {{date}}.',
+      placeholder: 'Choose a nickname',
+      tooShort: 'Nickname must be at least 3 characters.',
+      tooLong: 'Nickname must be at most 20 characters.',
+      invalidCharacters: 'Only letters, numbers, underscores, and hyphens are allowed.',
+      taken: 'That nickname is unavailable. Try another.',
+      available: 'Available',
+      cooldownError: 'You can change your nickname again soon — try again later.',
+      submit: 'Save nickname',
+    },
+    onboarding: {
+      avatarTitle: 'Pick an avatar',
+      nicknameTitle: 'Choose a nickname',
+      nicknameBody: 'This is how other players will see you across leagues and rankings.',
+      notificationsTitle: 'Stay in the loop',
+      notificationsBody: 'Notification preferences are coming soon. You can manage them anytime from Settings.',
+      enableNotifications: 'Enable notifications',
+      secondFactorTitle: 'Secure your account',
+      secondFactorBody:
+        'Add two-factor authentication so only you can sign in, even if your password is ever compromised.',
+      enableNow: 'Enable now',
+      completionError: 'Something went wrong finishing setup. Please try again.',
+      // `OnboardingStack`'s own native-stack header `title`s.
+      screens: {
+        nickname: 'Nickname',
+        avatar: 'Avatar',
+        rules: 'Rules',
+        notifications: 'Notifications',
+        secondFactor: 'Security',
+      },
+    },
+  },
+  // Change-2026-07-08 (follow-up) — `describeMatchStatus`'s `MatchStatus`
+  // keys (`src/domain/competition/match-status.ts`), previously hardcoded
+  // English returned directly from that domain function. It now returns a
+  // `labelKey` suffix instead; components call `t()` themselves.
+  matchStatus: {
+    scheduled: 'Scheduled',
+    locked: 'Locked',
+    live: 'Live',
+    finished: 'Finished',
+    postponed: 'Postponed',
+    cancelled: 'Cancelled',
   },
   predictions: {
     title: 'Predictions',
@@ -80,6 +288,53 @@ export const en = {
     // Preserves the exact pre-Bolt-9 string (straight apostrophe) so the
     // existing `predictions-screen.test.tsx` regex match keeps passing.
     error: "Couldn't load fixtures. Pull to retry.",
+    // Change-2026-07-08 (i18n completion) — `PredictionMatchCard` and its
+    // sibling components (kept plain `StyleSheet`, not Tamagui, per the
+    // existing FlashList-row-perf exception — i18n still applies).
+    penaltyWinnerPrompt: 'Penalty shootout winner',
+    poolPickerGlobal: 'Global',
+    matchCard: {
+      tbd: 'TBD',
+      homeLabel: 'Home',
+      awayLabel: 'Away',
+      updatePrediction: 'Update prediction',
+      savePrediction: 'Save prediction',
+      updateOverride: 'Update override',
+      saveOverride: 'Save override',
+      alsoSaveGlobal: 'Also save as my global prediction',
+      useGlobalPrediction: 'Use global prediction',
+      resetting: 'Resetting…',
+      scored: 'Scored',
+      pending: 'Pending',
+      penaltyAbbrev: 'pen.',
+    },
+    // Change-2026-07-08 (follow-up) — `describeLockReason`'s
+    // `PredictionLockReason` keys (`src/domain/predictions/prediction-
+    // eligibility.ts`), previously hardcoded English returned directly from
+    // that domain function. It now returns one of these key suffixes
+    // instead; components call `t()` themselves (domain stays framework-free).
+    lockReason: {
+      matchNotEditable: 'Not available yet',
+      kickoffReached: 'Locked — kickoff has passed',
+      cancelled: 'Match cancelled',
+      postponed: 'Match postponed',
+      matchStatusLocked: 'Locked',
+    },
+    scoreBreakdown: {
+      exact: 'Exact score',
+      result: 'Correct result',
+      partial: 'Partially correct',
+      miss: 'Missed',
+      points: '{{count}} pts',
+      resultLabel: 'Result',
+      homeGoalsLabel: 'Home goals',
+      awayGoalsLabel: 'Away goals',
+      penaltyBonusLabel: 'Penalty-winner bonus',
+    },
+    fixtureList: {
+      showPast: 'Show past matches',
+      hidePast: 'Hide past matches',
+    },
   },
   pools: {
     myPools: {
@@ -146,6 +401,102 @@ export const en = {
       error: 'Could not load this leaderboard.',
       notMember: 'You must be a member of this pool to see its leaderboard.',
       empty: 'No members yet.',
+    },
+    // Change-2026-07-08 (i18n completion) — every remaining `pools` remote
+    // screen/component's own copy, previously hardcoded English.
+    settingsScreen: {
+      poolNameLabel: 'Pool name',
+      saveName: 'Save name',
+      publicPoolLabel: 'Public pool',
+      membersCanInviteLabel: 'Members can invite',
+      nameLengthError: 'Name must be 3-60 characters.',
+      nameTakenError: 'A public pool with this name already exists.',
+      renameGenericError: "Couldn't rename this pool.",
+      visibilityNameTakenError:
+        'A public pool with this name already exists — rename before switching to public.',
+      deleteThisPool: 'Delete this pool',
+      deleteHint: 'This cannot be undone. To hand off ownership instead, use "Transfer ownership" above.',
+      deletePool: 'Delete pool',
+    },
+    createPool: {
+      poolNameLabel: 'Pool name',
+      poolNamePlaceholder: 'My league',
+      capacityLabel: 'Capacity ({{min}}-{{max}})',
+      publicPoolLabel: 'Public pool',
+      membersCanInviteLabel: 'Members can invite',
+      nameTakenError: 'A public pool with this name already exists.',
+      genericError: 'Please check the pool details.',
+      submit: 'Create pool',
+    },
+    discoverPools: {
+      loadError: "Couldn't load public pools.",
+      empty: 'No public pools yet.',
+      joinFullError: 'This pool is full.',
+      joinGenericError: "Couldn't join this pool.",
+    },
+    joinByToken: {
+      label: 'Invite code',
+      placeholder: 'ABC23XYZ',
+      fullError: 'This pool is full.',
+      notFoundError: 'Invalid invite code.',
+      genericError: "Couldn't join this pool.",
+      submit: 'Join pool',
+    },
+    poolPredictions: {
+      loadError: "Couldn't load this pool's predictions.",
+    },
+    inviteTokenPanel: {
+      label: 'Invite code',
+      copy: 'Copy',
+      copied: 'Copied!',
+    },
+    directedInviteForm: {
+      label: 'Invite someone',
+      hint: 'Nickname (name#1234) or email',
+      placeholder: 'name#1234 or email',
+      submit: 'Invite',
+      sent: 'Invite sent.',
+      savedNoAccount: "Invite saved — we'll notify them if they sign up.",
+      genericError: "Couldn't send the invite.",
+      errors: {
+        VALIDATION_FAILED: 'Enter a nickname (name#1234) or an email address.',
+        NOT_FOUND: 'Pool not found.',
+        NOT_MEMBER: 'You must be a member of this pool to invite.',
+        PERMISSION_DENIED: "This pool's owner hasn't enabled member invites.",
+        SELF_INVITE: "You can't invite yourself.",
+        UNRESOLVABLE: "We couldn't find a user with that nickname. Try name#1234 or an email.",
+      },
+    },
+    transferOwnershipPanel: {
+      label: 'Transfer ownership',
+      hint: 'Choose a member to become the new owner. You will stop being a member.',
+      invalidTargetError: 'Choose a current member to transfer to.',
+      genericError: "Couldn't transfer ownership. Please try again.",
+      submit: 'Transfer ownership',
+    },
+    memberRow: {
+      unnamedMember: 'Unnamed member',
+      owner: 'Owner',
+      kick: 'Kick',
+    },
+    scoreStepper: {
+      decrease: 'Decrease {{label}}',
+      increase: 'Increase {{label}}',
+    },
+    gridCell: {
+      unnamedMember: 'Unnamed member',
+      hiddenUntilKickoff: 'Hidden until kickoff',
+      noPrediction: 'No prediction',
+      edit: 'Edit',
+      predict: 'Predict',
+      useGlobal: 'Use global',
+      resetting: 'Resetting…',
+      override: 'Override',
+      points: '{{count}} pts',
+      cancel: 'Cancel',
+      save: 'Save',
+      home: 'Home',
+      away: 'Away',
     },
   },
   // Bolt 10 (RANKINGS-1/3, design.md §7.1) — the host's new `Rankings` tab.

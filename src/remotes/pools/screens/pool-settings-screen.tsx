@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import {
   usePoolDetailQuery,
@@ -23,6 +24,7 @@ type Props = NativeStackScreenProps<PoolsStackParamList, 'PoolSettings'>;
  * there is no other member to transfer to.
  */
 export function PoolSettingsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { poolId } = route.params;
   const { data: detail, isLoading } = usePoolDetailQuery(poolId);
 
@@ -41,16 +43,16 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
   const handleRename = useCallback(async () => {
     setError(null);
     if (!validatePoolName(name)) {
-      setError('Name must be 3-60 characters.');
+      setError(t('pools.settingsScreen.nameLengthError'));
       return;
     }
     const result = await renameMutation.mutateAsync({ poolId, name });
     if (!result.ok && result.error === 'NAME_TAKEN') {
-      setError('A public pool with this name already exists.');
+      setError(t('pools.settingsScreen.nameTakenError'));
     } else if (!result.ok) {
-      setError("Couldn't rename this pool.");
+      setError(t('pools.settingsScreen.renameGenericError'));
     }
-  }, [renameMutation, poolId, name]);
+  }, [renameMutation, poolId, name, t]);
 
   const handleToggleVisibility = useCallback(async () => {
     if (!detail?.ok) return;
@@ -58,9 +60,9 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
     const targetType = detail.pool.type === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
     const result = await visibilityMutation.mutateAsync({ poolId, type: targetType });
     if (!result.ok && result.error === 'NAME_TAKEN') {
-      setError('A public pool with this name already exists — rename before switching to public.');
+      setError(t('pools.settingsScreen.visibilityNameTakenError'));
     }
-  }, [detail, visibilityMutation, poolId]);
+  }, [detail, visibilityMutation, poolId, t]);
 
   const handleToggleMembersCanInvite = useCallback(
     (value: boolean) => {
@@ -86,12 +88,12 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Pool name</Text>
+      <Text style={styles.label}>{t('pools.settingsScreen.poolNameLabel')}</Text>
       <TextInput accessibilityLabel="Pool name" value={name} onChangeText={setName} style={styles.input} />
-      <Button title="Save name" onPress={handleRename} />
+      <Button title={t('pools.settingsScreen.saveName')} onPress={handleRename} />
 
       <View style={styles.switchRow}>
-        <Text style={styles.label}>Public pool</Text>
+        <Text style={styles.label}>{t('pools.settingsScreen.publicPoolLabel')}</Text>
         <Switch
           accessibilityLabel="Public pool"
           value={detail.pool.type === 'PUBLIC'}
@@ -101,7 +103,7 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
 
       {detail.pool.type === 'PRIVATE' ? (
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Members can invite</Text>
+          <Text style={styles.label}>{t('pools.settingsScreen.membersCanInviteLabel')}</Text>
           <Switch
             accessibilityLabel="Members can invite"
             value={detail.pool.membersCanInvite}
@@ -115,11 +117,9 @@ export function PoolSettingsScreen({ route, navigation }: Props) {
       <TransferOwnershipPanel poolId={poolId} members={detail.members} />
 
       <View style={styles.dangerZone}>
-        <Text style={styles.label}>Delete this pool</Text>
-        <Text style={styles.meta}>
-          This cannot be undone. To hand off ownership instead, use "Transfer ownership" above.
-        </Text>
-        <Button title="Delete pool" color="#cc3333" onPress={handleDelete} />
+        <Text style={styles.label}>{t('pools.settingsScreen.deleteThisPool')}</Text>
+        <Text style={styles.meta}>{t('pools.settingsScreen.deleteHint')}</Text>
+        <Button title={t('pools.settingsScreen.deletePool')} color="#cc3333" onPress={handleDelete} />
       </View>
     </View>
   );

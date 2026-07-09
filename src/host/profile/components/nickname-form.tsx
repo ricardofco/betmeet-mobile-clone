@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { validateNicknameBase, interpretAvailabilityResponse } from '@/domain/profile/validate-nickname-base';
 import { evaluateNicknameChangeEligibility } from '@/domain/profile/nickname-change-eligibility';
@@ -29,6 +30,7 @@ type NicknameFormProps = {
  * the client believes (PROFILE-1 AC).
  */
 export function NicknameForm({ mode, cooldown, onSubmitted }: NicknameFormProps) {
+  const { t } = useTranslation();
   const [base, setBase] = useState('');
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState<ReturnType<typeof validateNicknameBase> | null>(null);
@@ -86,11 +88,11 @@ export function NicknameForm({ mode, cooldown, onSubmitted }: NicknameFormProps)
         setAvailability({ status: 'taken' });
         return;
       }
-      setSubmitError('You can change your nickname again soon — try again later.');
+      setSubmitError(t('profile.nicknameForm.cooldownError'));
     } finally {
       setSubmitting(false);
     }
-  }, [base, mode, onSubmitted]);
+  }, [base, mode, onSubmitted, t]);
 
   const canSubmit =
     availability?.status === 'available' && !checking && !submitting && eligibility.allowed;
@@ -99,7 +101,7 @@ export function NicknameForm({ mode, cooldown, onSubmitted }: NicknameFormProps)
     <View style={styles.container}>
       {mode === 'settings' && !eligibility.allowed ? (
         <Text style={styles.cooldown}>
-          You can change your nickname again on {formatCooldownDate(eligibility.cooldownEndsAt)}.
+          {t('profile.nicknameForm.cooldownMessage', { date: formatCooldownDate(eligibility.cooldownEndsAt) })}
         </Text>
       ) : null}
 
@@ -109,7 +111,7 @@ export function NicknameForm({ mode, cooldown, onSubmitted }: NicknameFormProps)
         autoCorrect={false}
         editable={eligibility.allowed}
         onChangeText={handleChangeText}
-        placeholder="Choose a nickname"
+        placeholder={t('profile.nicknameForm.placeholder')}
         style={styles.input}
         value={base}
       />
@@ -117,29 +119,32 @@ export function NicknameForm({ mode, cooldown, onSubmitted }: NicknameFormProps)
       {checking ? <ActivityIndicator /> : null}
 
       {availability?.status === 'invalid' ? (
-        <Text style={styles.error}>{formatInvalidReason(availability.reason)}</Text>
+        <Text style={styles.error}>{formatInvalidReason(availability.reason, t)}</Text>
       ) : null}
       {availability?.status === 'taken' ? (
-        <Text style={styles.error}>That nickname is unavailable. Try another.</Text>
+        <Text style={styles.error}>{t('profile.nicknameForm.taken')}</Text>
       ) : null}
       {availability?.status === 'available' && !checking ? (
-        <Text style={styles.success}>Available</Text>
+        <Text style={styles.success}>{t('profile.nicknameForm.available')}</Text>
       ) : null}
       {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
 
-      <Button title="Save nickname" onPress={handleSubmit} disabled={!canSubmit} />
+      <Button title={t('profile.nicknameForm.submit')} onPress={handleSubmit} disabled={!canSubmit} />
     </View>
   );
 }
 
-function formatInvalidReason(reason: 'too-short' | 'too-long' | 'invalid-characters'): string {
+function formatInvalidReason(
+  reason: 'too-short' | 'too-long' | 'invalid-characters',
+  t: (key: string) => string,
+): string {
   switch (reason) {
     case 'too-short':
-      return 'Nickname must be at least 3 characters.';
+      return t('profile.nicknameForm.tooShort');
     case 'too-long':
-      return 'Nickname must be at most 20 characters.';
+      return t('profile.nicknameForm.tooLong');
     case 'invalid-characters':
-      return 'Only letters, numbers, underscores, and hyphens are allowed.';
+      return t('profile.nicknameForm.invalidCharacters');
   }
 }
 

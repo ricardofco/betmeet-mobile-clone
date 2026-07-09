@@ -3,9 +3,9 @@ import { describeMatchStatus, isLiveStatus, type MatchStatus } from '@/domain/co
 describe('match-status (model.md §1, COMPETITION-1 AC)', () => {
   const allStatuses: MatchStatus[] = ['SCHEDULED', 'LOCKED', 'LIVE', 'FINISHED', 'POSTPONED', 'CANCELLED'];
 
-  it('describes every status with a non-empty label', () => {
+  it('describes every status with a non-empty labelKey', () => {
     for (const status of allStatuses) {
-      expect(describeMatchStatus(status).label.length).toBeGreaterThan(0);
+      expect(describeMatchStatus(status).labelKey.length).toBeGreaterThan(0);
     }
   });
 

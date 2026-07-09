@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PoolScoreStepper } from '@/remotes/pools/components/pool-score-stepper';
 import type { PoolMemberPredictionCell } from '@/platform/backend-api/pools-api';
@@ -38,6 +39,7 @@ function PredictionGridCellComponent({
   isSaving,
   isResetting,
 }: PredictionGridCellProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [draftHome, setDraftHome] = useState(cell?.predictedHome ?? 0);
   const [draftAway, setDraftAway] = useState(cell?.predictedAway ?? 0);
@@ -61,17 +63,17 @@ function PredictionGridCellComponent({
   if (isEditing) {
     return (
       <View style={styles.row} testID="prediction-grid-cell-editing">
-        <Text style={styles.nickname}>{nickname ?? 'Unnamed member'}</Text>
+        <Text style={styles.nickname}>{nickname ?? t('pools.gridCell.unnamedMember')}</Text>
         <View style={styles.editRow}>
-          <PoolScoreStepper label="Home" value={draftHome} onChange={setDraftHome} />
-          <PoolScoreStepper label="Away" value={draftAway} onChange={setDraftAway} />
+          <PoolScoreStepper label={t('pools.gridCell.home')} value={draftHome} onChange={setDraftHome} />
+          <PoolScoreStepper label={t('pools.gridCell.away')} value={draftAway} onChange={setDraftAway} />
         </View>
         <View style={styles.editActions}>
           <Pressable accessibilityRole="button" onPress={handleCancel} disabled={isSaving}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{t('pools.gridCell.cancel')}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={handleSave} disabled={isSaving} style={styles.saveButton}>
-            {isSaving ? <ActivityIndicator size="small" /> : <Text style={styles.saveButtonText}>Save</Text>}
+            {isSaving ? <ActivityIndicator size="small" /> : <Text style={styles.saveButtonText}>{t('pools.gridCell.save')}</Text>}
           </Pressable>
         </View>
       </View>
@@ -80,28 +82,30 @@ function PredictionGridCellComponent({
 
   return (
     <View style={styles.row}>
-      <Text style={styles.nickname}>{nickname ?? 'Unnamed member'}</Text>
+      <Text style={styles.nickname}>{nickname ?? t('pools.gridCell.unnamedMember')}</Text>
       {cell?.hidden ? (
-        <Text style={styles.mutedText}>Hidden until kickoff</Text>
+        <Text style={styles.mutedText}>{t('pools.gridCell.hiddenUntilKickoff')}</Text>
       ) : hasPrediction ? (
         <View style={styles.scoreRow}>
           <Text style={styles.scoreText}>
             {cell!.predictedHome} - {cell!.predictedAway}
           </Text>
-          {cell!.isOverride ? <Text style={styles.overrideBadge}>Override</Text> : null}
-          {cell!.totalPoints !== null ? <Text style={styles.pointsBadge}>{cell!.totalPoints} pts</Text> : null}
+          {cell!.isOverride ? <Text style={styles.overrideBadge}>{t('pools.gridCell.override')}</Text> : null}
+          {cell!.totalPoints !== null ? (
+            <Text style={styles.pointsBadge}>{t('pools.gridCell.points', { count: cell!.totalPoints })}</Text>
+          ) : null}
         </View>
       ) : (
-        <Text style={styles.mutedText}>No prediction</Text>
+        <Text style={styles.mutedText}>{t('pools.gridCell.noPrediction')}</Text>
       )}
       {isViewer && canEdit ? (
         <View style={styles.viewerActions}>
           <Pressable accessibilityRole="button" onPress={handleStartEdit}>
-            <Text style={styles.editText}>{hasPrediction ? 'Edit' : 'Predict'}</Text>
+            <Text style={styles.editText}>{hasPrediction ? t('pools.gridCell.edit') : t('pools.gridCell.predict')}</Text>
           </Pressable>
           {canReset ? (
             <Pressable accessibilityRole="button" onPress={onReset} disabled={isResetting}>
-              <Text style={styles.resetText}>{isResetting ? 'Resetting…' : 'Use global'}</Text>
+              <Text style={styles.resetText}>{isResetting ? t('pools.gridCell.resetting') : t('pools.gridCell.useGlobal')}</Text>
             </Pressable>
           ) : null}
         </View>

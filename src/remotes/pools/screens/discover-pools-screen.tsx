@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { usePublicPoolsQuery, useJoinPublicMutation } from '@/remotes/pools/hooks/use-pools-query';
 import { PoolListItem } from '@/remotes/pools/components/pool-list-item';
@@ -15,6 +16,7 @@ type Props = NativeStackScreenProps<PoolsStackParamList, 'DiscoverPools'>;
  * freeze gate here or on the backend handler this calls).
  */
 export function DiscoverPoolsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { data: pools, isLoading, error } = usePublicPoolsQuery();
   const joinMutation = useJoinPublicMutation();
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -26,12 +28,12 @@ export function DiscoverPoolsScreen({ navigation }: Props) {
       if (result.ok) {
         navigation.navigate('PoolDetail', { poolId: result.poolId });
       } else if (result.error === 'FULL') {
-        setJoinError('This pool is full.');
+        setJoinError(t('pools.discoverPools.joinFullError'));
       } else {
-        setJoinError("Couldn't join this pool.");
+        setJoinError(t('pools.discoverPools.joinGenericError'));
       }
     },
-    [joinMutation, navigation],
+    [joinMutation, navigation, t],
   );
 
   const renderItem = useCallback<ListRenderItem<Pool>>(
@@ -52,7 +54,7 @@ export function DiscoverPoolsScreen({ navigation }: Props) {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text>Couldn't load public pools.</Text>
+        <Text>{t('pools.discoverPools.loadError')}</Text>
       </View>
     );
   }
@@ -64,7 +66,7 @@ export function DiscoverPoolsScreen({ navigation }: Props) {
         <FlashList data={pools} renderItem={renderItem} keyExtractor={keyExtractor} />
       ) : (
         <View style={styles.centered}>
-          <Text>No public pools yet.</Text>
+          <Text>{t('pools.discoverPools.empty')}</Text>
         </View>
       )}
     </View>

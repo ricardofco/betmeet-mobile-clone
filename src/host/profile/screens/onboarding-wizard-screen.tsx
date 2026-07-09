@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOnboardingWizard } from '@/host/profile/hooks/use-onboarding-wizard';
 import { profileApi } from '@/platform/backend-api/profile-api';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
@@ -36,6 +37,7 @@ type OnboardingWizardProviderProps = {
 };
 
 export function OnboardingWizardProvider({ children, notificationsOptIn }: OnboardingWizardProviderProps) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizard();
   const [completionError, setCompletionError] = useState<string | null>(null);
 
@@ -44,7 +46,7 @@ export function OnboardingWizardProvider({ children, notificationsOptIn }: Onboa
     const optIn = notificationsOptIn ?? wizard.stepStatus.notifications === 'done';
     const response = await profileApi.completeOnboarding(optIn);
     if (!response.ok) {
-      setCompletionError('Something went wrong finishing setup. Please try again.');
+      setCompletionError(t('profile.onboarding.completionError'));
       return;
     }
     // Forces a real token refresh (not just a cached-token `getSession()`
@@ -59,7 +61,7 @@ export function OnboardingWizardProvider({ children, notificationsOptIn }: Onboa
     // forever (confirmed by inspecting the cached JWT directly — it still
     // carried `onboarding_completed: false` after completion).
     await getSupabaseAdapter().refreshSession();
-  }, [notificationsOptIn, wizard.stepStatus]);
+  }, [notificationsOptIn, wizard.stepStatus, t]);
 
   const value = useMemo<OnboardingWizardContextValue>(
     () => ({ ...wizard, completeWizard, completionError }),

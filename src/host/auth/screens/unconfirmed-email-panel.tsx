@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { classifyResendAttempt, type ResendAttemptResult } from '@/domain/auth/resend-cooldown';
 import { getBackendApiClient } from '@/platform/backend-api/backend-api-client';
@@ -22,6 +23,7 @@ type UnconfirmedEmailPanelProps = {
  * shipped half-built.
  */
 export function UnconfirmedEmailPanel({ email }: UnconfirmedEmailPanelProps) {
+  const { t } = useTranslation();
   const [result, setResult] = useState<ResendAttemptResult | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [isSending, setIsSending] = useState(false);
@@ -67,13 +69,13 @@ export function UnconfirmedEmailPanel({ email }: UnconfirmedEmailPanelProps) {
     <View style={styles.container}>
       <Text style={styles.email}>{email}</Text>
       <Button
-        title={isThrottled ? `Resend in ${remainingSeconds}s` : 'Resend confirmation'}
+        title={isThrottled ? t('auth.unconfirmedEmailPanel.resendIn', { seconds: remainingSeconds }) : t('auth.unconfirmedEmailPanel.resendConfirmation')}
         onPress={handleResend}
         disabled={isSending || isThrottled}
       />
-      {result?.type === 'sent' ? <Text style={styles.status}>Confirmation email sent.</Text> : null}
+      {result?.type === 'sent' ? <Text style={styles.status}>{t('auth.unconfirmedEmailPanel.sent')}</Text> : null}
       {result?.type === 'throttled' ? (
-        <Text style={styles.status}>Please wait before requesting another email.</Text>
+        <Text style={styles.status}>{t('auth.unconfirmedEmailPanel.throttled')}</Text>
       ) : null}
     </View>
   );

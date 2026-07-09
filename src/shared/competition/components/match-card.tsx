@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { TeamBadge } from '@/shared/competition/components/team-badge';
 import { LiveIndicator } from '@/shared/competition/components/live-indicator';
@@ -8,8 +9,8 @@ type MatchCardProps = {
   match: Match;
 };
 
-function formatKickoffTime(kickoffAt: string | null): string {
-  if (!kickoffAt) return 'TBD';
+function formatKickoffTime(kickoffAt: string | null, tbdLabel: string): string {
+  if (!kickoffAt) return tbdLabel;
   const date = new Date(kickoffAt);
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
@@ -29,14 +30,21 @@ function formatScore(value: number | null): string {
  * every render.
  */
 function MatchCardComponent({ match }: MatchCardProps) {
+  const { t } = useTranslation();
   const statusDisplay = describeMatchStatus(match.status);
   const live = isLiveStatus(match.status);
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.kickoff}>{formatKickoffTime(match.kickoffAt)}</Text>
-        {live ? <LiveIndicator /> : <Text style={styles.statusLabel}>{statusDisplay.label}</Text>}
+        <Text style={styles.kickoff}>
+          {formatKickoffTime(match.kickoffAt, t('predictions.matchCard.tbd'))}
+        </Text>
+        {live ? (
+          <LiveIndicator />
+        ) : (
+          <Text style={styles.statusLabel}>{t(`matchStatus.${statusDisplay.labelKey}`)}</Text>
+        )}
       </View>
       <View style={styles.teams}>
         <TeamBadge team={match.homeTeam} align="home" />
@@ -46,7 +54,8 @@ function MatchCardComponent({ match }: MatchCardProps) {
           </Text>
           {match.homePenaltyScore !== null && match.awayPenaltyScore !== null ? (
             <Text style={styles.penaltyScore}>
-              ({formatScore(match.homePenaltyScore)} – {formatScore(match.awayPenaltyScore)} pen.)
+              ({formatScore(match.homePenaltyScore)} – {formatScore(match.awayPenaltyScore)}{' '}
+              {t('predictions.matchCard.penaltyAbbrev')})
             </Text>
           ) : null}
         </View>

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import { fireEvent, screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { PredictionMatchCard } from '@/host/predictions/components/prediction-match-card';
 import type { Match } from '@/domain/competition';
 import type { MatchWithMyPrediction, MyPrediction } from '@/domain/predictions';
@@ -60,7 +61,7 @@ function renderCard({
   onResetOverride = jest.fn(),
   isResettingOverride = false,
 }: RenderCardOptions) {
-  return render(
+  return renderWithQueryClient(
     <PredictionMatchCard
       row={row}
       now={now}

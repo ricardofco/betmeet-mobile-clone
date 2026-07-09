@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/remotes/pools/test-utils/render-with-query-client';
 import { PredictionGridCell } from '@/remotes/pools/components/prediction-grid-cell';
 import type { PoolMemberPredictionCell } from '@/platform/backend-api/pools-api';
 
@@ -22,7 +23,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('shows "Hidden until kickoff" and NEVER renders a score when the cell is hidden', async () => {
     const cell = makeCell({ hidden: true, predictedHome: null, predictedAway: null });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="rival#9999"
@@ -41,7 +42,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('shows the real score for another member once visible (hidden: false, post-kickoff)', async () => {
     const cell = makeCell({ hidden: false });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="rival#9999"
@@ -58,7 +59,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
   });
 
   it('shows "No prediction" when the member has no row for this match at all', async () => {
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={undefined}
         nickname="rival#9999"
@@ -76,7 +77,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('always shows the viewer\'s own prediction, never masked, regardless of kickoff', async () => {
     const cell = makeCell({ userId: 'me', hidden: false });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="me#0001"
@@ -94,7 +95,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('shows an editable "Predict"/"Edit" affordance only for the viewer\'s own editable row', async () => {
     const cell = makeCell({ userId: 'me' });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="me#0001"
@@ -113,7 +114,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
   it('calls onSave with the drafted scores when saving the inline editor', async () => {
     const onSave = jest.fn();
     const user = userEvent.setup();
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={undefined}
         nickname="me#0001"
@@ -137,7 +138,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('shows "Use global" only when the viewer has both an override AND a global prediction', async () => {
     const cell = makeCell({ userId: 'me', isOverride: true, hasGlobal: true });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="me#0001"
@@ -155,7 +156,7 @@ describe('PredictionGridCell (POOLS-6, ADR-038 — presentational-only masking d
 
   it('does not show "Use global" when there is an override but no global prediction', async () => {
     const cell = makeCell({ userId: 'me', isOverride: true, hasGlobal: false });
-    await render(
+    await renderWithQueryClient(
       <PredictionGridCell
         cell={cell}
         nickname="me#0001"

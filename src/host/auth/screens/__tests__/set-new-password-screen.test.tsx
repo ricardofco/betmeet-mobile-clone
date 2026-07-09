@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { SetNewPasswordScreen } from '@/host/auth/screens/set-new-password-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 
@@ -24,7 +25,7 @@ function buildProps() {
 
 describe('SetNewPasswordScreen', () => {
   it('renders the new-password input and submit button', async () => {
-    await render(<SetNewPasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<SetNewPasswordScreen {...buildProps()} />);
     expect(screen.getByLabelText('New password')).toBeTruthy();
     expect(screen.getByText('Update password')).toBeTruthy();
   });
@@ -32,7 +33,7 @@ describe('SetNewPasswordScreen', () => {
   it('shows a success message after password is updated', async () => {
     mockAdapter.setNewPassword.mockResolvedValue({ type: 'password-updated' });
     const user = userEvent.setup();
-    await render(<SetNewPasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<SetNewPasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('New password'), 'newSecurePass123');
     await user.press(screen.getByText('Update password'));
@@ -47,7 +48,7 @@ describe('SetNewPasswordScreen', () => {
       reason: 'Password must be at least 8 characters.',
     });
     const user = userEvent.setup();
-    await render(<SetNewPasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<SetNewPasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('New password'), 'short');
     await user.press(screen.getByText('Update password'));
@@ -58,7 +59,7 @@ describe('SetNewPasswordScreen', () => {
   it('shows a generic error on adapter error', async () => {
     mockAdapter.setNewPassword.mockResolvedValue({ type: 'error' });
     const user = userEvent.setup();
-    await render(<SetNewPasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<SetNewPasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('New password'), 'validpassword');
     await user.press(screen.getByText('Update password'));

@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { SignUpScreen } from '@/host/auth/screens/sign-up-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import type { AuthStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -14,7 +15,7 @@ function NullScreen() {
 }
 
 function renderSignUpScreen() {
-  return render(
+  return renderWithQueryClient(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="SignUp" component={SignUpScreen} />

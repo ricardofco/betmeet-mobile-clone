@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   useDeleteAccountMutation,
@@ -27,6 +28,7 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'DeleteAccount'>;
  * Screen class: `protected`, same as every other Settings row.
  */
 export function DeleteAccountScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const [phrase, setPhrase] = useState('');
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -58,8 +60,8 @@ export function DeleteAccountScreen({ navigation: _navigation }: Props) {
     if (!result.ok) {
       setSubmitError(
         result.error === 'MISSING_ASSIGNMENT'
-          ? 'Choose a new owner for every pool listed below.'
-          : "Couldn't delete your account. Please try again.",
+          ? t('settings.deleteAccount.missingAssignmentError')
+          : t('settings.deleteAccount.genericError'),
       );
       return;
     }
@@ -70,7 +72,7 @@ export function DeleteAccountScreen({ navigation: _navigation }: Props) {
     // AuthGatedNavigator reacts to the now-null session automatically —
     // no explicit navigation call needed here (same as every other
     // sign-out path in this app).
-  }, [canSubmit, deleteMutation, assignmentList]);
+  }, [canSubmit, deleteMutation, assignmentList, t]);
 
   if (ownedPoolsQuery.isLoading) {
     return (
@@ -82,15 +84,12 @@ export function DeleteAccountScreen({ navigation: _navigation }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Delete account</Text>
-      <Text style={styles.body}>
-        This is permanent and cannot be undone. Your predictions and pool history are removed and your nickname
-        is released.
-      </Text>
+      <Text style={styles.title}>{t('settings.deleteAccount.title')}</Text>
+      <Text style={styles.body}>{t('settings.deleteAccount.body')}</Text>
 
       {poolsRequiringAssignment.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Transfer your pools</Text>
+          <Text style={styles.sectionLabel}>{t('settings.deleteAccount.transferSectionLabel')}</Text>
           {poolsRequiringAssignment.map(pool => (
             <View key={pool.poolId} style={styles.poolRow}>
               <Text style={styles.poolName}>{pool.poolName}</Text>
@@ -112,13 +111,15 @@ export function DeleteAccountScreen({ navigation: _navigation }: Props) {
 
       {poolsThatWillBeDeleted.length > 0 ? (
         <Text style={styles.body}>
-          These pools have no other members and will be deleted: {poolsThatWillBeDeleted.map(p => p.poolName).join(', ')}.
+          {t('settings.deleteAccount.poolsToDeleteBody', {
+            names: poolsThatWillBeDeleted.map(p => p.poolName).join(', '),
+          })}
         </Text>
       ) : null}
 
-      <Text style={styles.sectionLabel}>Confirm</Text>
+      <Text style={styles.sectionLabel}>{t('settings.deleteAccount.confirmSectionLabel')}</Text>
       <Text style={styles.body}>
-        Type &quot;{DELETE_ACCOUNT_CONFIRM_PHRASE}&quot; to confirm.
+        {t('settings.deleteAccount.confirmInstruction', { phrase: DELETE_ACCOUNT_CONFIRM_PHRASE })}
       </Text>
       <TextInput
         accessibilityLabel="Confirmation phrase"
@@ -133,7 +134,7 @@ export function DeleteAccountScreen({ navigation: _navigation }: Props) {
       {deleteMutation.isPending ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Delete my account" color="#cc3333" disabled={!canSubmit} onPress={handleDelete} />
+        <Button title={t('settings.deleteAccount.submit')} color="#cc3333" disabled={!canSubmit} onPress={handleDelete} />
       )}
     </ScrollView>
   );

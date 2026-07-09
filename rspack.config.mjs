@@ -197,14 +197,14 @@ function sharedDeps(pkg, { eager }) {
     // binding instead of resolving to the host's already-initialized one.
     '@react-native-async-storage/async-storage': dep('@react-native-async-storage/async-storage'),
     // Post-Implement fix (Layer 2 finding #1, new ADR-047) — tab-bar icons.
-    // Host-only: only `main-tab-navigator.tsx`'s tab bar uses icons; this
-    // bolt's `pools`-remote design polish (finding #4) used existing Tamagui
-    // primitives, not icons, so `pool-list-item.tsx` etc. don't need this
-    // package — not added to `rspack.config.pools-remote.mjs`. Unlike
-    // `tamagui`/`i18next`, `lucide-react-native` has no shared-context/
-    // singleton *correctness* requirement (each icon is a stateless SVG
-    // render, no Provider needed) — this entry is a bundle-size nicety, not
-    // a bug-avoidance one, should a future bolt add icons to `pools` too.
+    // Host-only. `pools`' `my-pools-screen.tsx` ActionCards now also render
+    // `lucide-react-native` icons (Change-2026-07-08, item 4) — not added
+    // here to `rspack.config.pools-remote.mjs`'s own shared config, and that
+    // remains fine: unlike `tamagui`/`i18next`, `lucide-react-native` has no
+    // shared-context/singleton *correctness* requirement (each icon is a
+    // stateless SVG render, no Provider needed) — this entry is a
+    // bundle-size nicety only, not a bug-avoidance one. `pools` simply
+    // bundles its own copy; nothing breaks either way.
     'lucide-react-native': dep('lucide-react-native'),
   };
 }

@@ -1,4 +1,5 @@
 import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PoolScoreStepperProps = {
@@ -18,6 +19,7 @@ const MAX_SCORE = 20;
  * see ADR-037 for the full "why duplicate this one widget" reasoning.
  */
 function PoolScoreStepperComponent({ label, value, onChange }: PoolScoreStepperProps) {
+  const { t } = useTranslation();
   const handleDecrement = useCallback(() => onChange(Math.max(MIN_SCORE, value - 1)), [value, onChange]);
   const handleIncrement = useCallback(() => onChange(Math.min(MAX_SCORE, value + 1)), [value, onChange]);
 
@@ -25,11 +27,21 @@ function PoolScoreStepperComponent({ label, value, onChange }: PoolScoreStepperP
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.row}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label}`} onPress={handleDecrement} style={styles.button}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('pools.scoreStepper.decrease', { label })}
+          onPress={handleDecrement}
+          style={styles.button}
+        >
           <Text style={styles.buttonText}>–</Text>
         </Pressable>
         <Text style={styles.value}>{value}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label}`} onPress={handleIncrement} style={styles.button}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('pools.scoreStepper.increase', { label })}
+          onPress={handleIncrement}
+          style={styles.button}
+        >
           <Text style={styles.buttonText}>+</Text>
         </Pressable>
       </View>

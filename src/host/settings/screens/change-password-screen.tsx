@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getSupabaseAdapter, type ChangePasswordResult } from '@/platform/supabase/supabase-adapter';
 import type { SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'ChangePassword'>;
  * update of an already-signed-in user on Supabase).
  */
 export function ChangePasswordScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,8 +35,8 @@ export function ChangePasswordScreen({ navigation: _navigation }: Props) {
   if (result?.type === 'password-changed') {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Password changed</Text>
-        <Text style={styles.body}>Your password has been updated successfully.</Text>
+        <Text style={styles.title}>{t('settings.changePassword.changedTitle')}</Text>
+        <Text style={styles.body}>{t('settings.changePassword.changedBody')}</Text>
       </View>
     );
   }
@@ -43,12 +45,12 @@ export function ChangePasswordScreen({ navigation: _navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Change password</Text>
+      <Text style={styles.title}>{t('settings.changePassword.title')}</Text>
       <TextInput
         accessibilityLabel="Current password"
         autoCapitalize="none"
         onChangeText={setCurrentPassword}
-        placeholder="Current password"
+        placeholder={t('settings.changePassword.currentPlaceholder')}
         secureTextEntry
         style={styles.input}
         value={currentPassword}
@@ -57,7 +59,7 @@ export function ChangePasswordScreen({ navigation: _navigation }: Props) {
         accessibilityLabel="New password"
         autoCapitalize="none"
         onChangeText={setNewPassword}
-        placeholder="New password (min 8 characters)"
+        placeholder={t('settings.changePassword.newPlaceholder')}
         secureTextEntry
         style={styles.input}
         value={newPassword}
@@ -66,12 +68,12 @@ export function ChangePasswordScreen({ navigation: _navigation }: Props) {
         <Text style={styles.error}>{result.reason}</Text>
       ) : null}
       {result?.type === 'error' ? (
-        <Text style={styles.error}>Unable to change password. Check your current password and try again.</Text>
+        <Text style={styles.error}>{t('settings.changePassword.genericError')}</Text>
       ) : null}
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Save new password" onPress={handleSubmit} disabled={!canSubmit} />
+        <Button title={t('settings.changePassword.submit')} onPress={handleSubmit} disabled={!canSubmit} />
       )}
     </View>
   );

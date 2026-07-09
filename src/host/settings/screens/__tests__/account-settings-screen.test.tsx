@@ -1,11 +1,14 @@
+import { Alert } from 'react-native';
 import { screen, userEvent } from '@testing-library/react-native';
 import { AccountSettingsScreen } from '@/host/settings/screens/account-settings-screen';
 import { profileApi } from '@/platform/backend-api/profile-api';
 import { adminApi } from '@/platform/backend-api/admin-api';
+import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 
 jest.mock('@/platform/backend-api/profile-api');
 jest.mock('@/platform/backend-api/admin-api');
+jest.mock('@/platform/supabase/supabase-adapter');
 
 function buildProps(navigate = jest.fn()) {
   return {
@@ -17,6 +20,8 @@ function buildProps(navigate = jest.fn()) {
 describe('AccountSettingsScreen', () => {
   const mockedGetProfile = profileApi.getProfile as jest.MockedFunction<typeof profileApi.getProfile>;
   const mockedCheckAccess = adminApi.checkAccess as jest.MockedFunction<typeof adminApi.checkAccess>;
+  const mockedGetAdapter = getSupabaseAdapter as jest.MockedFunction<typeof getSupabaseAdapter>;
+  const signOut = jest.fn();
 
   beforeEach(() => {
     mockedGetProfile.mockReset();
@@ -30,6 +35,9 @@ describe('AccountSettingsScreen', () => {
     // ADMIN-1 (design.md §2.2 point 1) — defaults every pre-existing test in
     // this file to the ~100% case (not an admin), same as production.
     mockedCheckAccess.mockResolvedValue({ isAdmin: false });
+    signOut.mockReset().mockResolvedValue(undefined);
+    mockedGetAdapter.mockReset();
+    mockedGetAdapter.mockReturnValue({ signOut } as unknown as ReturnType<typeof getSupabaseAdapter>);
   });
 
   it('renders the Profile and Account settings rows', async () => {
@@ -142,5 +150,66 @@ describe('AccountSettingsScreen', () => {
     expect(await screen.findByText('Admin')).toBeOnTheScreen();
     await user.press(screen.getByText('Admin'));
     expect(navigate).toHaveBeenCalledWith('Admin');
+  });
+
+  // Change-2026-07-08 (Omitted Requirement #3) — the first real, deliberate
+  // sign-out affordance for an already-authenticated user (see
+  // `memory-bank/change-2026-07-08-ux-i18n-fixes.md` item 3). A lightweight
+  // native `Alert.alert` confirm, not a Bolt-8-style typed confirm-phrase
+  // screen — mirrors `DeleteAccountScreen`'s own test suite's `getSupabase
+  // Adapter` mocking convention, but `Alert.alert` itself has no prior
+  // test-suite precedent anywhere in this repo, so it's spied on directly
+  // (RN's real `Alert.alert` is a no-op under Jest already, `jest.spyOn`
+  // lets this suite both assert on and drive its `buttons` callbacks).
+  describe('sign out (Omitted Requirement #3)', () => {
+    it('shows a confirm alert when the "Sign out" row is pressed, without signing out yet', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const user = userEvent.setup();
+      await renderWithQueryClient(<AccountSettingsScreen {...buildProps()} />);
+      await screen.findByText('astro#1234');
+
+      await user.press(screen.getByText('Sign out'));
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      const [title, message, buttons] = alertSpy.mock.calls[0];
+      expect(title).toBe('Sign out?');
+      expect(message).toBe('Are you sure you want to sign out?');
+      expect(buttons).toHaveLength(2);
+      expect(signOut).not.toHaveBeenCalled();
+
+      alertSpy.mockRestore();
+    });
+
+    it('calls getSupabaseAdapter().signOut() when the destructive "Sign out" button is confirmed', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+        const confirmButton = buttons?.find(button => button.style === 'destructive');
+        confirmButton?.onPress?.();
+      });
+      const user = userEvent.setup();
+      await renderWithQueryClient(<AccountSettingsScreen {...buildProps()} />);
+      await screen.findByText('astro#1234');
+
+      await user.press(screen.getByText('Sign out'));
+
+      expect(signOut).toHaveBeenCalledTimes(1);
+
+      alertSpy.mockRestore();
+    });
+
+    it('does NOT sign out when the "Cancel" button is pressed', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+        const cancelButton = buttons?.find(button => button.style === 'cancel');
+        cancelButton?.onPress?.();
+      });
+      const user = userEvent.setup();
+      await renderWithQueryClient(<AccountSettingsScreen {...buildProps()} />);
+      await screen.findByText('astro#1234');
+
+      await user.press(screen.getByText('Sign out'));
+
+      expect(signOut).not.toHaveBeenCalled();
+
+      alertSpy.mockRestore();
+    });
   });
 });

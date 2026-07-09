@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { SignInResult } from '@/domain/auth/sign-in';
 import type { OAuthSignInResult } from '@/platform/supabase/supabase-adapter';
@@ -23,6 +24,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
  * Linking listener (ADR-005, ADR-006).
  */
 export function SignInScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,13 +64,13 @@ export function SignInScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign in</Text>
+      <Text style={styles.title}>{t('auth.signIn.title')}</Text>
       <TextInput
         accessibilityLabel="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         onChangeText={setEmail}
-        placeholder="Email"
+        placeholder={t('auth.signIn.emailPlaceholder')}
         style={styles.input}
         value={email}
       />
@@ -76,32 +78,32 @@ export function SignInScreen({ navigation }: Props) {
         accessibilityLabel="Password"
         autoCapitalize="none"
         onChangeText={setPassword}
-        placeholder="Password"
+        placeholder={t('auth.signIn.passwordPlaceholder')}
         secureTextEntry
         style={styles.input}
         value={password}
       />
       {result?.type === 'invalid-credentials' ? (
-        <Text style={styles.error}>Incorrect email or password.</Text>
+        <Text style={styles.error}>{t('auth.signIn.invalidCredentials')}</Text>
       ) : null}
       {result?.type === 'unconfirmed-email' ? <UnconfirmedEmailPanel email={result.email} /> : null}
-      <Button title="Sign in" onPress={handleSubmit} disabled={isSubmitting} />
+      <Button title={t('auth.signIn.submit')} onPress={handleSubmit} disabled={isSubmitting} />
       <View style={styles.divider}>
-        <Text style={styles.dividerText}>or</Text>
+        <Text style={styles.dividerText}>{t('common.or')}</Text>
       </View>
       {oauthResult?.type === 'error' ? (
-        <Text style={styles.error}>Could not open Google sign-in. Please try again.</Text>
+        <Text style={styles.error}>{t('auth.signIn.oauthError')}</Text>
       ) : null}
       <Button
-        title={isOAuthSubmitting ? 'Opening Google…' : 'Sign in with Google'}
+        title={isOAuthSubmitting ? t('auth.signIn.openingGoogle') : t('auth.signIn.signInWithGoogle')}
         onPress={handleGoogleSignIn}
         disabled={isOAuthSubmitting}
       />
       <Text accessibilityRole="button" onPress={handleNavigateSignUp} style={styles.link}>
-        Need an account? Sign up
+        {t('auth.signIn.needAccount')}
       </Text>
       <Text accessibilityRole="button" onPress={handleNavigateForgotPassword} style={styles.link}>
-        Forgot password?
+        {t('auth.signIn.forgotPassword')}
       </Text>
     </View>
   );

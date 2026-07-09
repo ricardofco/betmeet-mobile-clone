@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { evaluateGuard, type Destination } from '@/domain/auth/auth-guard';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
@@ -112,44 +113,50 @@ export function AuthGatedNavigator({ renderAppTree }: AuthGatedNavigatorProps) {
 }
 
 function UnauthenticatedTree() {
+  const { t } = useTranslation();
   return (
     <AuthStack.Navigator>
-      <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign in' }} />
-      <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Create account' }} />
+      <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: t('auth.screens.signIn') }} />
+      <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: t('auth.screens.signUp') }} />
       <AuthStack.Screen
         name="ForgotPassword"
         component={ForgotPasswordScreen}
-        options={{ title: 'Forgot password' }}
+        options={{ title: t('auth.screens.forgotPassword') }}
       />
       <AuthStack.Screen
         name="SetNewPassword"
         component={SetNewPasswordScreen}
-        options={{ title: 'Set new password' }}
+        options={{ title: t('auth.screens.setNewPassword') }}
       />
       <AuthStack.Screen
         name="VerifyEmail"
         component={VerifyEmailScreenRoute}
-        options={{ title: 'Verify email' }}
+        options={{ title: t('auth.screens.verifyEmail') }}
       />
     </AuthStack.Navigator>
   );
 }
 
 function VerifyEmailTree() {
+  const { t } = useTranslation();
   return (
     <AuthStack.Navigator>
-      <AuthStack.Screen name="VerifyEmail" component={VerifyEmailScreenRoute} options={{ title: 'Verify email' }} />
-      <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign in' }} />
-      <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: 'Create account' }} />
+      <AuthStack.Screen
+        name="VerifyEmail"
+        component={VerifyEmailScreenRoute}
+        options={{ title: t('auth.screens.verifyEmail') }}
+      />
+      <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: t('auth.screens.signIn') }} />
+      <AuthStack.Screen name="SignUp" component={SignUpScreen} options={{ title: t('auth.screens.signUp') }} />
       <AuthStack.Screen
         name="ForgotPassword"
         component={ForgotPasswordScreen}
-        options={{ title: 'Forgot password' }}
+        options={{ title: t('auth.screens.forgotPassword') }}
       />
       <AuthStack.Screen
         name="SetNewPassword"
         component={SetNewPasswordScreen}
-        options={{ title: 'Set new password' }}
+        options={{ title: t('auth.screens.setNewPassword') }}
       />
     </AuthStack.Navigator>
   );
@@ -175,33 +182,34 @@ function MfaChallengeTree() {
  * duration of the wizard session (never persisted — model.md §2.7).
  */
 function OnboardingTree() {
+  const { t } = useTranslation();
   return (
     <OnboardingWizardProvider>
       <OnboardingStack.Navigator>
         <OnboardingStack.Screen
           name="OnboardingNickname"
           component={OnboardingNicknameScreen}
-          options={{ title: 'Nickname' }}
+          options={{ title: t('profile.onboarding.screens.nickname') }}
         />
         <OnboardingStack.Screen
           name="OnboardingAvatar"
           component={OnboardingAvatarScreen}
-          options={{ title: 'Avatar' }}
+          options={{ title: t('profile.onboarding.screens.avatar') }}
         />
         <OnboardingStack.Screen
           name="OnboardingRules"
           component={OnboardingRulesScreen}
-          options={{ title: 'Rules' }}
+          options={{ title: t('profile.onboarding.screens.rules') }}
         />
         <OnboardingStack.Screen
           name="OnboardingNotifications"
           component={OnboardingNotificationsScreen}
-          options={{ title: 'Notifications' }}
+          options={{ title: t('profile.onboarding.screens.notifications') }}
         />
         <OnboardingStack.Screen
           name="OnboardingSecondFactor"
           component={OnboardingSecondFactorScreen}
-          options={{ title: 'Security' }}
+          options={{ title: t('profile.onboarding.screens.secondFactor') }}
         />
       </OnboardingStack.Navigator>
     </OnboardingWizardProvider>

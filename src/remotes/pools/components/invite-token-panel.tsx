@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { canInvite, type PoolForInvitePermission } from '@/domain/pools';
 
@@ -26,6 +27,7 @@ type InviteTokenPanelProps = {
  * component only decides whether to *render* the affordance.
  */
 export function InviteTokenPanel({ pool, inviteToken, viewerIsOwner, onCopy }: InviteTokenPanelProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   if (!canInvite(pool, viewerIsOwner) || !inviteToken) return null;
@@ -37,13 +39,15 @@ export function InviteTokenPanel({ pool, inviteToken, viewerIsOwner, onCopy }: I
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Invite code</Text>
+      <Text style={styles.label}>{t('pools.inviteTokenPanel.label')}</Text>
       <View style={styles.tokenRow}>
         <Text style={styles.token} selectable>
           {inviteToken}
         </Text>
         <Pressable accessibilityRole="button" onPress={handleCopy} style={styles.copyButton}>
-          <Text style={styles.copyButtonText}>{copied ? 'Copied!' : 'Copy'}</Text>
+          <Text style={styles.copyButtonText}>
+            {copied ? t('pools.inviteTokenPanel.copied') : t('pools.inviteTokenPanel.copy')}
+          </Text>
         </Pressable>
       </View>
     </View>

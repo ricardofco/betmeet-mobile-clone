@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { PredictionsFixtureList } from '@/host/predictions/components/predictions-fixture-list';
 import type { Match } from '@/domain/competition';
 import type { MatchWithMyPrediction } from '@/domain/predictions';
@@ -28,7 +29,7 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
   it('renders day-grouped rows with prediction-capable match cards', async () => {
     const rows = [makeRow({ id: 'm1', kickoffAt: '2026-06-16T18:00:00Z' })];
 
-    await render(
+    await renderWithQueryClient(
       <PredictionsFixtureList
         rows={rows}
         now={NOW}
@@ -50,7 +51,7 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
   it('does not show the past-matches toggle when there are no past matches', async () => {
     const rows = [makeRow({ id: 'm1', kickoffAt: '2026-06-16T18:00:00Z' })];
 
-    await render(
+    await renderWithQueryClient(
       <PredictionsFixtureList
         rows={rows}
         now={NOW}
@@ -77,7 +78,7 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
     const onTogglePastMatches = jest.fn();
     const user = userEvent.setup();
 
-    await render(
+    await renderWithQueryClient(
       <PredictionsFixtureList
         rows={rows}
         now={NOW}
@@ -106,7 +107,7 @@ describe('PredictionsFixtureList (ADR-025 — day-grouped, reuses buildFixtureVi
       }),
     ];
 
-    await render(
+    await renderWithQueryClient(
       <PredictionsFixtureList
         rows={rows}
         now={NOW}

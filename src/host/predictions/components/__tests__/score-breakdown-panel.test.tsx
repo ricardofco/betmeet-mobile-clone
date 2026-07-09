@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
+import { screen } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { ScoreBreakdownPanel } from '@/host/predictions/components/score-breakdown-panel';
 import type { ScoreBreakdown } from '@/shared/scoring';
 
@@ -12,7 +13,7 @@ describe('ScoreBreakdownPanel (PREDICTIONS-5)', () => {
       totalPoints: 5,
       explanationKey: 'EXACT',
     };
-    await render(<ScoreBreakdownPanel breakdown={breakdown} />);
+    await renderWithQueryClient(<ScoreBreakdownPanel breakdown={breakdown} />);
 
     expect(screen.getByText('Exact score')).toBeOnTheScreen();
     expect(screen.getByText('5 pts')).toBeOnTheScreen();
@@ -28,7 +29,7 @@ describe('ScoreBreakdownPanel (PREDICTIONS-5)', () => {
       explanationKey: 'RESULT',
       components: { resultPoints: 2, homeGoalPoints: 0, awayGoalPoints: 0 },
     };
-    await render(<ScoreBreakdownPanel breakdown={breakdown} />);
+    await renderWithQueryClient(<ScoreBreakdownPanel breakdown={breakdown} />);
 
     expect(screen.getByText('Correct result')).toBeOnTheScreen();
     expect(screen.getByText('Result: +2')).toBeOnTheScreen();
@@ -45,7 +46,7 @@ describe('ScoreBreakdownPanel (PREDICTIONS-5)', () => {
       explanationKey: 'RESULT',
       components: { resultPoints: 2, homeGoalPoints: 0, awayGoalPoints: 0 },
     };
-    await render(<ScoreBreakdownPanel breakdown={breakdown} />);
+    await renderWithQueryClient(<ScoreBreakdownPanel breakdown={breakdown} />);
 
     expect(screen.getByText('Penalty-winner bonus: +1')).toBeOnTheScreen();
   });
@@ -60,7 +61,7 @@ describe('ScoreBreakdownPanel (PREDICTIONS-5)', () => {
       explanationKey: 'MISS',
       components: { resultPoints: 0, homeGoalPoints: 0, awayGoalPoints: 0 },
     };
-    await render(<ScoreBreakdownPanel breakdown={breakdown} />);
+    await renderWithQueryClient(<ScoreBreakdownPanel breakdown={breakdown} />);
 
     expect(screen.queryByText(/Penalty-winner bonus/)).not.toBeOnTheScreen();
   });

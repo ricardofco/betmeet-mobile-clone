@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { validateAvatarUpload } from '@/domain/profile/validate-avatar-upload';
@@ -21,6 +22,7 @@ type AvatarPickerProps = {
  * measurable performance benefit at this scale.
  */
 export function AvatarPicker({ mode: _mode, googlePhotoUrl, onSelected }: AvatarPickerProps) {
+  const { t } = useTranslation();
   const [defaultOptions, setDefaultOptions] = useState<DefaultAvatarOption[]>([]);
   const [loadingDefaults, setLoadingDefaults] = useState(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -72,8 +74,8 @@ export function AvatarPicker({ mode: _mode, googlePhotoUrl, onSelected }: Avatar
     if (!validation.valid) {
       setUploadError(
         validation.reason === 'too-large'
-          ? 'Image must be 5MB or smaller.'
-          : 'Only JPEG, PNG, or WebP images are supported.',
+          ? t('profile.avatarPicker.tooLarge')
+          : t('profile.avatarPicker.unsupportedType'),
       );
       return;
     }
@@ -96,23 +98,23 @@ export function AvatarPicker({ mode: _mode, googlePhotoUrl, onSelected }: Avatar
       const { avatarUrl } = await profileApi.confirmAvatarUpload(confirmToken);
       onSelected({ source: 'custom', url: avatarUrl });
     } catch {
-      setUploadError('Upload failed. Please try again.');
+      setUploadError(t('profile.avatarPicker.uploadFailed'));
     } finally {
       setUploading(false);
     }
-  }, [onSelected]);
+  }, [onSelected, t]);
 
   return (
     <View style={styles.container}>
       {googlePhotoUrl ? (
         <Pressable accessibilityRole="button" onPress={handleSelectGoogle} style={styles.googleRow}>
           <Image source={{ uri: googlePhotoUrl }} style={styles.googleThumb} />
-          <Text>Use Google photo</Text>
+          <Text>{t('profile.avatarPicker.useGooglePhoto')}</Text>
         </Pressable>
       ) : null}
 
       <Pressable accessibilityRole="button" onPress={handlePickCustom} disabled={uploading} style={styles.uploadRow}>
-        {uploading ? <ActivityIndicator /> : <Text>Upload a custom photo</Text>}
+        {uploading ? <ActivityIndicator /> : <Text>{t('profile.avatarPicker.uploadCustomPhoto')}</Text>}
       </Pressable>
       {uploadError ? <Text style={styles.error}>{uploadError}</Text> : null}
 

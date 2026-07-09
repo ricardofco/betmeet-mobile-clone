@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getSupabaseAdapter, type MfaChallengeResult } from '@/platform/supabase/supabase-adapter';
 import { useAuthSessionStore } from '@/host/auth/auth-session-store';
@@ -18,8 +19,14 @@ import { useAuthSessionStore } from '@/host/auth/auth-session-store';
  *
  * No back button — this is the root of `MfaChallengeTree`. The user's only
  * exits are successful MFA or sign-out (ADR-008).
+ *
+ * Change-2026-07-08 (Omitted Requirement #3): this escape-hatch sign-out
+ * link reuses the exact same `settings.rows.signOut` copy/i18n key as the
+ * new deliberate sign-out row in `AccountSettingsScreen`, so both stay
+ * worded identically per the change's own instruction.
  */
 export function MfaChallengeScreen() {
+  const { t } = useTranslation();
   const mfaFactorId = useAuthSessionStore(state => state.mfaFactorId);
   const setMfaFactorId = useAuthSessionStore(state => state.setMfaFactorId);
 
@@ -72,35 +79,31 @@ export function MfaChallengeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Two-factor authentication</Text>
-      <Text style={styles.body}>
-        Enter the 6-digit code from your authenticator app to continue.
-      </Text>
+      <Text style={styles.title}>{t('auth.mfaChallenge.title')}</Text>
+      <Text style={styles.body}>{t('auth.mfaChallenge.body')}</Text>
       <TextInput
         accessibilityLabel="Authentication code"
         keyboardType="number-pad"
         maxLength={6}
         onChangeText={setCode}
-        placeholder="000000"
+        placeholder={t('auth.mfaChallenge.codePlaceholder')}
         style={styles.input}
         value={code}
       />
       {result?.type === 'invalid-code' ? (
-        <Text style={styles.error}>Incorrect code. Please check your authenticator app and try again.</Text>
+        <Text style={styles.error}>{t('auth.mfaChallenge.invalidCode')}</Text>
       ) : null}
       {result?.type === 'expired' ? (
-        <Text style={styles.error}>Code expired. Please enter the current code from your authenticator app.</Text>
+        <Text style={styles.error}>{t('auth.mfaChallenge.expired')}</Text>
       ) : null}
-      {result?.type === 'error' ? (
-        <Text style={styles.error}>Something went wrong. Please try again.</Text>
-      ) : null}
+      {result?.type === 'error' ? <Text style={styles.error}>{t('auth.mfaChallenge.error')}</Text> : null}
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Verify" onPress={handleVerify} disabled={isSubmitting || code.length !== 6} />
+        <Button title={t('auth.mfaChallenge.verify')} onPress={handleVerify} disabled={isSubmitting || code.length !== 6} />
       )}
       <Text accessibilityRole="button" onPress={handleSignOut} style={styles.link}>
-        Sign out
+        {t('settings.rows.signOut')}
       </Text>
     </View>
   );

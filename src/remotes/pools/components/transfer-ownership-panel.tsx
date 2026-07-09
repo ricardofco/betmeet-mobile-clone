@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
 import { useTransferOwnershipMutation } from '@/remotes/pools/hooks/use-pools-query';
 import { transferCandidates, type PoolMember } from '@/domain/pools';
@@ -17,6 +18,7 @@ type TransferOwnershipPanelProps = {
  * stage. Hidden entirely when there is no other member to transfer to.
  */
 export function TransferOwnershipPanel({ poolId, members, onTransferred }: TransferOwnershipPanelProps) {
+  const { t } = useTranslation();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,21 +32,21 @@ export function TransferOwnershipPanel({ poolId, members, onTransferred }: Trans
     if (!result.ok) {
       setError(
         result.error === 'INVALID_TARGET'
-          ? 'Choose a current member to transfer to.'
-          : "Couldn't transfer ownership. Please try again.",
+          ? t('pools.transferOwnershipPanel.invalidTargetError')
+          : t('pools.transferOwnershipPanel.genericError'),
       );
       return;
     }
     setSelectedUserId(null);
     onTransferred?.();
-  }, [mutation, poolId, selectedUserId, onTransferred]);
+  }, [mutation, poolId, selectedUserId, onTransferred, t]);
 
   if (candidates.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Transfer ownership</Text>
-      <Text style={styles.hint}>Choose a member to become the new owner. You will stop being a member.</Text>
+      <Text style={styles.label}>{t('pools.transferOwnershipPanel.label')}</Text>
+      <Text style={styles.hint}>{t('pools.transferOwnershipPanel.hint')}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {candidates.map(candidate => (
         <Button
@@ -61,7 +63,7 @@ export function TransferOwnershipPanel({ poolId, members, onTransferred }: Trans
         <ActivityIndicator />
       ) : (
         <Button
-          title="Transfer ownership"
+          title={t('pools.transferOwnershipPanel.submit')}
           color="#cc3333"
           disabled={!selectedUserId}
           onPress={handleTransfer}

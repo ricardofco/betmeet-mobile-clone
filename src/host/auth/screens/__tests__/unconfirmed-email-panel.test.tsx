@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { UnconfirmedEmailPanel } from '@/host/auth/screens/unconfirmed-email-panel';
 import { getBackendApiClient } from '@/platform/backend-api/backend-api-client';
 
@@ -17,7 +18,7 @@ describe('UnconfirmedEmailPanel', () => {
       resendConfirmation: jest.fn().mockResolvedValue({ throttled: false }),
     } as unknown as ReturnType<typeof getBackendApiClient>);
 
-    await render(<UnconfirmedEmailPanel email="user@example.com" />);
+    await renderWithQueryClient(<UnconfirmedEmailPanel email="user@example.com" />);
 
     expect(screen.getByText('user@example.com')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Resend confirmation' })).toBeOnTheScreen();
@@ -29,7 +30,7 @@ describe('UnconfirmedEmailPanel', () => {
     } as unknown as ReturnType<typeof getBackendApiClient>);
 
     const user = userEvent.setup();
-    await render(<UnconfirmedEmailPanel email="user@example.com" />);
+    await renderWithQueryClient(<UnconfirmedEmailPanel email="user@example.com" />);
 
     await user.press(screen.getByRole('button', { name: 'Resend confirmation' }));
 
@@ -42,7 +43,7 @@ describe('UnconfirmedEmailPanel', () => {
     } as unknown as ReturnType<typeof getBackendApiClient>);
 
     const user = userEvent.setup();
-    await render(<UnconfirmedEmailPanel email="user@example.com" />);
+    await renderWithQueryClient(<UnconfirmedEmailPanel email="user@example.com" />);
 
     await user.press(screen.getByRole('button', { name: 'Resend confirmation' }));
 
@@ -56,7 +57,7 @@ describe('UnconfirmedEmailPanel', () => {
     } as unknown as ReturnType<typeof getBackendApiClient>);
 
     const user = userEvent.setup();
-    await render(<UnconfirmedEmailPanel email="user@example.com" />);
+    await renderWithQueryClient(<UnconfirmedEmailPanel email="user@example.com" />);
 
     await user.press(screen.getByRole('button', { name: 'Resend confirmation' }));
 

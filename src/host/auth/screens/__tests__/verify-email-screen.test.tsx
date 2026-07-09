@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react-native';
+import { screen } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { VerifyEmailScreen } from '@/host/auth/screens/verify-email-screen';
 import { getBackendApiClient } from '@/platform/backend-api/backend-api-client';
 
@@ -16,19 +17,19 @@ describe('VerifyEmailScreen', () => {
   });
 
   it('shows post-signup copy for reason="post-signup"', async () => {
-    await render(<VerifyEmailScreen email="new-user@example.com" reason="post-signup" />);
+    await renderWithQueryClient(<VerifyEmailScreen email="new-user@example.com" reason="post-signup" />);
     expect(screen.getByText('Check your email to finish signing up')).toBeOnTheScreen();
     expect(screen.getByText('new-user@example.com')).toBeOnTheScreen();
   });
 
   it('shows unconfirmed-session copy for reason="unconfirmed-session" (AUTH-7 rule 3 destination)', async () => {
-    await render(<VerifyEmailScreen email="returning-user@example.com" reason="unconfirmed-session" />);
+    await renderWithQueryClient(<VerifyEmailScreen email="returning-user@example.com" reason="unconfirmed-session" />);
     expect(screen.getByText('Please verify your email to continue')).toBeOnTheScreen();
     expect(screen.getByText('returning-user@example.com')).toBeOnTheScreen();
   });
 
   it('renders the same resend affordance regardless of reason', async () => {
-    await render(<VerifyEmailScreen email="user@example.com" reason="post-signup" />);
+    await renderWithQueryClient(<VerifyEmailScreen email="user@example.com" reason="post-signup" />);
     expect(screen.getByRole('button', { name: 'Resend confirmation' })).toBeOnTheScreen();
   });
 });

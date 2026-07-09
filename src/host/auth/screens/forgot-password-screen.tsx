@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getSupabaseAdapter, type PasswordResetRequestResult } from '@/platform/supabase/supabase-adapter';
 import type { AuthStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -16,6 +17,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
  * users reach it, authenticated users are bounced to Home by rule 4).
  */
 export function ForgotPasswordScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<PasswordResetRequestResult | null>(null);
@@ -33,39 +35,35 @@ export function ForgotPasswordScreen({ navigation: _navigation }: Props) {
   if (result?.type === 'sent') {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Check your inbox</Text>
-        <Text style={styles.body}>
-          We sent a password-reset link to {email}. Tap the link in the email to set a new password.
-        </Text>
+        <Text style={styles.title}>{t('auth.forgotPassword.checkInboxTitle')}</Text>
+        <Text style={styles.body}>{t('auth.forgotPassword.sentBody', { email })}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Reset your password</Text>
-      <Text style={styles.body}>
-        Enter your email address and we will send you a link to reset your password.
-      </Text>
+      <Text style={styles.title}>{t('auth.forgotPassword.title')}</Text>
+      <Text style={styles.body}>{t('auth.forgotPassword.body')}</Text>
       <TextInput
         accessibilityLabel="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         onChangeText={setEmail}
-        placeholder="Email"
+        placeholder={t('auth.forgotPassword.emailPlaceholder')}
         style={styles.input}
         value={email}
       />
       {result?.type === 'invalid-email' ? (
-        <Text style={styles.error}>Enter a valid email address.</Text>
+        <Text style={styles.error}>{t('auth.forgotPassword.invalidEmail')}</Text>
       ) : null}
       {result?.type === 'error' ? (
-        <Text style={styles.error}>Something went wrong. Please try again.</Text>
+        <Text style={styles.error}>{t('auth.forgotPassword.error')}</Text>
       ) : null}
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Send reset link" onPress={handleSubmit} disabled={isSubmitting || email.length === 0} />
+        <Button title={t('auth.forgotPassword.submit')} onPress={handleSubmit} disabled={isSubmitting || email.length === 0} />
       )}
     </View>
   );

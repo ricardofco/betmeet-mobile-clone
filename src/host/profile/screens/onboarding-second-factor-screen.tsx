@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useOnboardingWizardContext } from '@/host/profile/screens/onboarding-wizard-screen';
 import type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';
@@ -22,6 +23,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'OnboardingSecondF
  * or `'skipped'`.
  */
 export function OnboardingSecondFactorScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
   const handleEnableNow = useCallback(() => {
@@ -42,12 +44,10 @@ export function OnboardingSecondFactorScreen({ navigation: _navigation }: Props)
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Secure your account</Text>
-      <Text style={styles.body}>
-        Add two-factor authentication so only you can sign in, even if your password is ever compromised.
-      </Text>
-      <Button title="Enable now" onPress={handleEnableNow} />
-      <Button title="Skip for now" onPress={handleSkip} />
+      <Text style={styles.title}>{t('profile.onboarding.secondFactorTitle')}</Text>
+      <Text style={styles.body}>{t('profile.onboarding.secondFactorBody')}</Text>
+      <Button title={t('profile.onboarding.enableNow')} onPress={handleEnableNow} />
+      <Button title={t('common.skipForNow')} onPress={handleSkip} />
     </View>
   );
 }

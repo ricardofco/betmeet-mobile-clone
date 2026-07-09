@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { MfaChallengeScreen } from '@/host/auth/screens/mfa-challenge-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { useAuthSessionStore } from '@/host/auth/auth-session-store';
@@ -28,7 +29,7 @@ beforeEach(() => {
 
 describe('MfaChallengeScreen', () => {
   it('renders the code input and verify button when a factor ID is known', async () => {
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
     expect(screen.getByLabelText('Authentication code')).toBeTruthy();
     expect(screen.getByText('Verify')).toBeTruthy();
   });
@@ -36,7 +37,7 @@ describe('MfaChallengeScreen', () => {
   it('shows invalid-code error when verification fails with invalid-code', async () => {
     mockAdapter.challengeAndVerifyMfa.mockResolvedValue({ type: 'invalid-code' });
     const user = userEvent.setup();
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
 
     await user.type(screen.getByLabelText('Authentication code'), '123456');
     await user.press(screen.getByText('Verify'));
@@ -48,7 +49,7 @@ describe('MfaChallengeScreen', () => {
   it('shows expired error when challenge has expired', async () => {
     mockAdapter.challengeAndVerifyMfa.mockResolvedValue({ type: 'expired' });
     const user = userEvent.setup();
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
 
     await user.type(screen.getByLabelText('Authentication code'), '999888');
     await user.press(screen.getByText('Verify'));
@@ -59,7 +60,7 @@ describe('MfaChallengeScreen', () => {
   it('shows generic error on adapter error', async () => {
     mockAdapter.challengeAndVerifyMfa.mockResolvedValue({ type: 'error' });
     const user = userEvent.setup();
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
 
     await user.type(screen.getByLabelText('Authentication code'), '111222');
     await user.press(screen.getByText('Verify'));
@@ -71,7 +72,7 @@ describe('MfaChallengeScreen', () => {
     mockAdapter.getMfaFactors.mockResolvedValue({ factorId: 'factor-from-api' });
     useAuthSessionStore.setState({ mfaFactorId: null });
 
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
 
     // Wait for the loading state to resolve and inputs to appear
     expect(await screen.findByLabelText('Authentication code')).toBeTruthy();
@@ -79,14 +80,14 @@ describe('MfaChallengeScreen', () => {
   });
 
   it('renders a sign-out link', async () => {
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
     expect(screen.getByText('Sign out')).toBeTruthy();
   });
 
   it('calls signOut when the sign-out link is pressed', async () => {
     mockAdapter.signOut.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    await render(<MfaChallengeScreen />);
+    await renderWithQueryClient(<MfaChallengeScreen />);
 
     await user.press(screen.getByText('Sign out'));
     expect(mockAdapter.signOut).toHaveBeenCalled();

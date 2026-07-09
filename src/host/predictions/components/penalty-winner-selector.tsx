@@ -1,4 +1,5 @@
 import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { PenaltyWinner } from '@/domain/predictions';
 
@@ -30,12 +31,13 @@ function PenaltyWinnerSelectorComponent({
   onChange,
   editable,
 }: PenaltyWinnerSelectorProps) {
+  const { t } = useTranslation();
   const handleSelectHome = useCallback(() => onChange('home'), [onChange]);
   const handleSelectAway = useCallback(() => onChange('away'), [onChange]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.prompt}>Penalty shootout winner</Text>
+      <Text style={styles.prompt}>{t('predictions.penaltyWinnerPrompt')}</Text>
       <View style={styles.options}>
         <Pressable
           accessibilityRole="button"

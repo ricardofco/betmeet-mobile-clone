@@ -36,19 +36,27 @@ export function useOnboardingWizard() {
     setState(prev => ({ ...prev, stepStatus: { ...prev.stepStatus, [step]: 'skipped' } }));
   }, []);
 
-  /** Returns the step to navigate to, or `null` if advancing isn't allowed yet, or `'complete'` if the wizard is finished. */
-  const advance = useCallback((): OnboardingStepId | 'complete' | null => {
-    const status = state.stepStatus[state.currentStep];
-    if (!canAdvanceFrom(state.currentStep, status)) {
-      return null;
-    }
-    const next = nextStep(state.currentStep);
-    if (next === null) {
-      return 'complete';
-    }
-    setState(prev => ({ ...prev, currentStep: next }));
-    return next;
-  }, [state.currentStep, state.stepStatus]);
+  /**
+   * Marks `step` as `status` and advances past it in a single state update —
+   * `step`/`status` are taken as explicit params (not read from `state`) so
+   * this never races a pending `setState` from a previous call within the
+   * same handler. Returns the step to navigate to, or `null` if advancing
+   * isn't allowed for that status, or `'complete'` if the wizard is finished.
+   */
+  const advance = useCallback(
+    (step: OnboardingStepId, status: OnboardingStepStatus): OnboardingStepId | 'complete' | null => {
+      if (!canAdvanceFrom(step, status)) {
+        return null;
+      }
+      const next = nextStep(step);
+      setState(prev => ({
+        currentStep: next ?? prev.currentStep,
+        stepStatus: { ...prev.stepStatus, [step]: status },
+      }));
+      return next ?? 'complete';
+    },
+    [],
+  );
 
   const goBack = useCallback((): OnboardingStepId | null => {
     const prev = previousStep(state.currentStep);

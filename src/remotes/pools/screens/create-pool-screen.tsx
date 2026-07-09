@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useCreatePoolMutation } from '@/remotes/pools/hooks/use-pools-query';
 import { validatePoolCapacity, validatePoolName, MIN_POOL_CAPACITY, MAX_POOL_CAPACITY } from '@/domain/pools';
@@ -16,6 +17,7 @@ type Props = NativeStackScreenProps<PoolsStackParamList, 'CreatePool'>;
  * (design.md §2.1/ADR-035).
  */
 export function CreatePoolScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState<PoolVisibility>('PRIVATE');
   const [capacity, setCapacity] = useState(String(MIN_POOL_CAPACITY));
@@ -44,24 +46,26 @@ export function CreatePoolScreen({ navigation }: Props) {
     if (result.ok) {
       navigation.replace('PoolDetail', { poolId: result.pool.id });
     } else if (result.error === 'NAME_TAKEN') {
-      setError('A public pool with this name already exists.');
+      setError(t('pools.createPool.nameTakenError'));
     } else {
-      setError('Please check the pool details.');
+      setError(t('pools.createPool.genericError'));
     }
-  }, [createMutation, name, type, parsedCapacity, membersCanInvite, navigation]);
+  }, [createMutation, name, type, parsedCapacity, membersCanInvite, navigation, t]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Pool name</Text>
+      <Text style={styles.label}>{t('pools.createPool.poolNameLabel')}</Text>
       <TextInput
         accessibilityLabel="Pool name"
         value={name}
         onChangeText={setName}
         style={styles.input}
-        placeholder="My league"
+        placeholder={t('pools.createPool.poolNamePlaceholder')}
       />
 
-      <Text style={styles.label}>Capacity ({MIN_POOL_CAPACITY}-{MAX_POOL_CAPACITY})</Text>
+      <Text style={styles.label}>
+        {t('pools.createPool.capacityLabel', { min: MIN_POOL_CAPACITY, max: MAX_POOL_CAPACITY })}
+      </Text>
       <TextInput
         accessibilityLabel="Capacity"
         value={capacity}
@@ -71,13 +75,13 @@ export function CreatePoolScreen({ navigation }: Props) {
       />
 
       <View style={styles.switchRow}>
-        <Text style={styles.label}>Public pool</Text>
+        <Text style={styles.label}>{t('pools.createPool.publicPoolLabel')}</Text>
         <Switch accessibilityLabel="Public pool" value={type === 'PUBLIC'} onValueChange={handleTogglePublic} />
       </View>
 
       {type === 'PRIVATE' ? (
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Members can invite</Text>
+          <Text style={styles.label}>{t('pools.createPool.membersCanInviteLabel')}</Text>
           <Switch
             accessibilityLabel="Members can invite"
             value={membersCanInvite}
@@ -88,7 +92,7 @@ export function CreatePoolScreen({ navigation }: Props) {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Button title="Create pool" onPress={handleSubmit} disabled={!canSubmit} />
+      <Button title={t('pools.createPool.submit')} onPress={handleSubmit} disabled={!canSubmit} />
     </View>
   );
 }

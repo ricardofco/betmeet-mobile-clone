@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getSupabaseAdapter, type SetNewPasswordResult } from '@/platform/supabase/supabase-adapter';
 import type { AuthStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -15,6 +16,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SetNewPassword'>;
  * to the app tree automatically per ADR-001.
  */
 export function SetNewPasswordScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<SetNewPasswordResult | null>(null);
@@ -32,8 +34,8 @@ export function SetNewPasswordScreen({ navigation: _navigation }: Props) {
   if (result?.type === 'password-updated') {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Password updated</Text>
-        <Text style={styles.body}>Your password has been updated. Signing you in...</Text>
+        <Text style={styles.title}>{t('auth.setNewPassword.updatedTitle')}</Text>
+        <Text style={styles.body}>{t('auth.setNewPassword.updatedBody')}</Text>
         <ActivityIndicator />
       </View>
     );
@@ -41,13 +43,13 @@ export function SetNewPasswordScreen({ navigation: _navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Set new password</Text>
-      <Text style={styles.body}>Enter your new password. It must be at least 8 characters.</Text>
+      <Text style={styles.title}>{t('auth.setNewPassword.title')}</Text>
+      <Text style={styles.body}>{t('auth.setNewPassword.body')}</Text>
       <TextInput
         accessibilityLabel="New password"
         autoCapitalize="none"
         onChangeText={setPassword}
-        placeholder="New password"
+        placeholder={t('auth.setNewPassword.passwordPlaceholder')}
         secureTextEntry
         style={styles.input}
         value={password}
@@ -56,12 +58,12 @@ export function SetNewPasswordScreen({ navigation: _navigation }: Props) {
         <Text style={styles.error}>{result.reason}</Text>
       ) : null}
       {result?.type === 'error' ? (
-        <Text style={styles.error}>Something went wrong. Please try again or request a new reset link.</Text>
+        <Text style={styles.error}>{t('auth.setNewPassword.error')}</Text>
       ) : null}
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Update password" onPress={handleSubmit} disabled={isSubmitting || password.length === 0} />
+        <Button title={t('auth.setNewPassword.submit')} onPress={handleSubmit} disabled={isSubmitting || password.length === 0} />
       )}
     </View>
   );

@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useOnboardingWizardContext } from '@/host/profile/screens/onboarding-wizard-screen';
 import type { OnboardingStackParamList } from '@/host/profile/navigation/onboarding-stack-params';
@@ -15,34 +16,29 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'OnboardingNotific
  * capability to consume (model.md §5) — not implemented here.
  */
 export function OnboardingNotificationsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
-  const goToNext = useCallback(() => {
-    const next = wizard.advance();
+  const handleEnable = useCallback(() => {
+    const next = wizard.advance('notifications', 'done');
     if (next && next !== 'complete') {
       navigation.navigate('OnboardingSecondFactor');
     }
   }, [navigation, wizard]);
 
-  const handleEnable = useCallback(() => {
-    wizard.markDone('notifications');
-    goToNext();
-  }, [wizard, goToNext]);
-
   const handleSkip = useCallback(() => {
-    wizard.markSkipped('notifications');
-    goToNext();
-  }, [wizard, goToNext]);
+    const next = wizard.advance('notifications', 'skipped');
+    if (next && next !== 'complete') {
+      navigation.navigate('OnboardingSecondFactor');
+    }
+  }, [navigation, wizard]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Stay in the loop</Text>
-      <Text style={styles.body}>
-        Notification preferences are coming soon (unit-08-notifications). You can manage them anytime from
-        Settings.
-      </Text>
-      <Button title="Enable notifications" onPress={handleEnable} />
-      <Button title="Skip for now" onPress={handleSkip} />
+      <Text style={styles.title}>{t('profile.onboarding.notificationsTitle')}</Text>
+      <Text style={styles.body}>{t('profile.onboarding.notificationsBody')}</Text>
+      <Button title={t('profile.onboarding.enableNotifications')} onPress={handleEnable} />
+      <Button title={t('common.skipForNow')} onPress={handleSkip} />
     </View>
   );
 }

@@ -43,6 +43,20 @@ export default Repack.defineRspackConfig((env) => {
       rules: [
         {
           test: /\.[cm]?[jt]sx?$/,
+          // Change-2026-07-08 (My Pools redesign, item 4): `ActionCard` icons
+          // (`CirclePlus`/`Compass`/`KeyRound`) make this the first time this
+          // remote bundles its own local copy of `lucide-react-native` (not
+          // shared, per `rspack.config.mjs`'s own comment — no correctness
+          // requirement, bundle-size nicety only). That local copy still
+          // passes through THIS remote's own `babel-swc-loader` rule though,
+          // hitting the exact same bug ADR-047 already fixed for the host:
+          // Hermes' parser rejects `lucide-react-native/.../infinity.js`'s
+          // `const Infinity = createLucideIcon(...)` as "can't create
+          // duplicate variable that shadows a global property" — this
+          // package ships plain, already-valid JS needing no transform, so
+          // excluding it here (mirroring `rspack.config.mjs`'s identical
+          // exclude) is the fix, not a workaround.
+          exclude: /node_modules[\\/]lucide-react-native/,
           type: 'javascript/auto',
           use: {
             loader: '@callstack/repack/babel-swc-loader',

@@ -85,4 +85,29 @@ describe('MyPoolsScreen', () => {
     await user.press(screen.getByRole('button', { name: 'Join by code' }));
     expect(navigation.navigate).toHaveBeenCalledWith('JoinByToken');
   });
+
+  // Change-2026-07-08 (item 4, My Pools redesign) — the 3 stacked full-width
+  // `PrimaryButton`s were replaced with a row of equal-weight, icon-labeled
+  // `ActionCard`s (`src/shared/design/primitives.tsx`). The test above
+  // already proves each action is independently tappable-and-correctly-wired
+  // (unchanged by the redesign, since `ActionCard` is queried the same way a
+  // `PrimaryButton` was — `accessibilityRole="button"` + its computed
+  // accessible name, per this repo's query-by-role-over-testID convention).
+  // This test adds the one thing that convention doesn't already cover: that
+  // there are exactly 3 of them, together, as a single row of cards — not 2,
+  // not 4, not a stray extra action reintroduced by a future edit — since
+  // `getByRole` alone can't distinguish "3 correct actions" from "3 correct
+  // actions plus a 4th unrelated one".
+  it('renders exactly 3 tappable action cards (Create/Discover/Join by code)', async () => {
+    mockedPoolsApi.getMine.mockResolvedValue([]);
+    const navigation = makeNavigation();
+    await renderWithQueryClient(<MyPoolsScreen navigation={navigation} route={{} as any} />);
+
+    await screen.findByText("You haven't joined any pools yet.");
+
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Create a pool' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Discover public pools' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Join by code' })).toBeOnTheScreen();
+  });
 });

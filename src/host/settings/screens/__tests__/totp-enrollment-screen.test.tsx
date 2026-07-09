@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { TotpEnrollmentScreen } from '@/host/settings/screens/totp-enrollment-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 
@@ -28,7 +29,7 @@ function buildProps() {
 
 describe('TotpEnrollmentScreen', () => {
   it('renders the initial idle state with "Get started" button', async () => {
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
     expect(screen.getByText('Enable two-factor authentication')).toBeTruthy();
     expect(screen.getByText('Get started')).toBeTruthy();
   });
@@ -40,7 +41,7 @@ describe('TotpEnrollmentScreen', () => {
       factorId: 'factor-123',
     });
     const user = userEvent.setup();
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
 
     await user.press(screen.getByText('Get started'));
 
@@ -56,7 +57,7 @@ describe('TotpEnrollmentScreen', () => {
       factorId: 'factor-123',
     });
     const user = userEvent.setup();
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
 
     await user.press(screen.getByText('Get started'));
     expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeTruthy();
@@ -70,7 +71,7 @@ describe('TotpEnrollmentScreen', () => {
     });
     mockAdapter.verifyTotpEnrollment.mockResolvedValue({ type: 'verified' });
     const user = userEvent.setup();
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
 
     await user.press(screen.getByText('Get started'));
 
@@ -90,7 +91,7 @@ describe('TotpEnrollmentScreen', () => {
     });
     mockAdapter.verifyTotpEnrollment.mockResolvedValue({ type: 'invalid-code' });
     const user = userEvent.setup();
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
 
     await user.press(screen.getByText('Get started'));
 
@@ -106,7 +107,7 @@ describe('TotpEnrollmentScreen', () => {
   it('shows error phase when enrollTotp throws', async () => {
     mockAdapter.enrollTotp.mockRejectedValue(new Error('Network error'));
     const user = userEvent.setup();
-    await render(<TotpEnrollmentScreen {...buildProps()} />);
+    await renderWithQueryClient(<TotpEnrollmentScreen {...buildProps()} />);
 
     await user.press(screen.getByText('Get started'));
 

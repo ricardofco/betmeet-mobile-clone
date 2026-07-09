@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { AvatarPicker } from '@/host/profile/components/avatar-picker';
 import { useOnboardingWizardContext } from '@/host/profile/screens/onboarding-wizard-screen';
@@ -12,11 +13,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'OnboardingAvatar'
  * `isStepRequired('avatar') === true`). Reuses `AvatarPicker`.
  */
 export function OnboardingAvatarScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
   const handleSelected = useCallback(() => {
-    wizard.markDone('avatar');
-    const next = wizard.advance();
+    const next = wizard.advance('avatar', 'done');
     if (next && next !== 'complete') {
       navigation.navigate('OnboardingRules');
     }
@@ -24,7 +25,7 @@ export function OnboardingAvatarScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pick an avatar</Text>
+      <Text style={styles.title}>{t('profile.onboarding.avatarTitle')}</Text>
       <AvatarPicker mode="onboarding" onSelected={handleSelected} />
     </View>
   );

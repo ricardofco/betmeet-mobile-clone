@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { NicknameForm } from '@/host/profile/components/nickname-form';
 import { useOnboardingWizardContext } from '@/host/profile/screens/onboarding-wizard-screen';
@@ -14,11 +15,11 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'OnboardingNicknam
  * assignment, model.md §2.2 row 1).
  */
 export function OnboardingNicknameScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
   const handleSubmitted = useCallback(() => {
-    wizard.markDone('nickname');
-    const next = wizard.advance();
+    const next = wizard.advance('nickname', 'done');
     if (next && next !== 'complete') {
       navigation.navigate('OnboardingAvatar');
     }
@@ -26,8 +27,8 @@ export function OnboardingNicknameScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Choose a nickname</Text>
-      <Text style={styles.body}>This is how other players will see you across leagues and rankings.</Text>
+      <Text style={styles.title}>{t('profile.onboarding.nicknameTitle')}</Text>
+      <Text style={styles.body}>{t('profile.onboarding.nicknameBody')}</Text>
       <NicknameForm mode="onboarding" onSubmitted={handleSubmitted} />
     </View>
   );

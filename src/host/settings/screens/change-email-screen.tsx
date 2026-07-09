@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getSupabaseAdapter, type ChangeEmailResult } from '@/platform/supabase/supabase-adapter';
 import type { SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'ChangeEmail'>;
  * to check their new email address.
  */
 export function ChangeEmailScreen({ navigation: _navigation }: Props) {
+  const { t } = useTranslation();
   const [newEmail, setNewEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<ChangeEmailResult | null>(null);
@@ -31,24 +33,22 @@ export function ChangeEmailScreen({ navigation: _navigation }: Props) {
   if (result?.type === 'confirmation-sent') {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Check your new email</Text>
-        <Text style={styles.body}>
-          We sent a confirmation link to {newEmail}. Tap the link to confirm your new email address.
-        </Text>
+        <Text style={styles.title}>{t('settings.changeEmail.checkNewEmailTitle')}</Text>
+        <Text style={styles.body}>{t('settings.changeEmail.confirmationSentBody', { email: newEmail })}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Change email</Text>
-      <Text style={styles.body}>Enter your new email address. We will send a confirmation link to that address.</Text>
+      <Text style={styles.title}>{t('settings.changeEmail.title')}</Text>
+      <Text style={styles.body}>{t('settings.changeEmail.body')}</Text>
       <TextInput
         accessibilityLabel="New email"
         autoCapitalize="none"
         keyboardType="email-address"
         onChangeText={setNewEmail}
-        placeholder="New email address"
+        placeholder={t('settings.changeEmail.placeholder')}
         style={styles.input}
         value={newEmail}
       />
@@ -56,12 +56,12 @@ export function ChangeEmailScreen({ navigation: _navigation }: Props) {
         <Text style={styles.error}>{result.reason}</Text>
       ) : null}
       {result?.type === 'error' ? (
-        <Text style={styles.error}>Unable to change email. Please try again.</Text>
+        <Text style={styles.error}>{t('settings.changeEmail.genericError')}</Text>
       ) : null}
       {isSubmitting ? (
         <ActivityIndicator />
       ) : (
-        <Button title="Send confirmation" onPress={handleSubmit} disabled={isSubmitting || newEmail.length === 0} />
+        <Button title={t('settings.changeEmail.submit')} onPress={handleSubmit} disabled={isSubmitting || newEmail.length === 0} />
       )}
     </View>
   );

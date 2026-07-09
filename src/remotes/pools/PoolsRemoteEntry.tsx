@@ -31,6 +31,25 @@ const PoolsStack = createNativeStackNavigator<PoolsStackParamList>();
  * `pools.screens.*` catalog keys (`src/platform/i18n/locales/{en,es}.ts`),
  * the same MF `i18next` shared singleton `MyPoolsScreen`'s own retrofit
  * already relies on (ADR-043).
+ *
+ * Change-2026-07-08 (item 4, header dedup): `main-tab-navigator.tsx`'s outer
+ * `PoolsStackNavigator` already gives its single `Pools` route a header
+ * (title `navigation.tabs.pools`, "Ligas"/"Leagues" — matching the tab bar
+ * itself) with the `renderHeaderMenuButton` hamburger wired via `headerLeft`
+ * (Bolt 9, ADR-042). Since that outer screen is a permanent host-side
+ * wrapper around this entire nested navigator (it never re-renders per
+ * inner route), its header was showing *stacked* on top of this navigator's
+ * own `MyPools` root-screen header ("Mis ligas"/"My Pools") every time this
+ * remote first mounted — a genuine nested-navigator double-header, not a
+ * duplicated JSX heading. Fixed narrowly, scoped to exactly the reported
+ * screen: only `MyPools` (this navigator's root) suppresses its own header
+ * via `headerShown: false`, keeping the outer "Ligas" header + hamburger as
+ * the single header shown there. Every other screen below (`DiscoverPools`,
+ * `CreatePool`, etc.) is unaffected — they already push with their own
+ * header + a native back button underneath the outer's persistent "Ligas"
+ * header, exactly as before this fix (not reported broken, left unchanged).
+ * `renderHeaderMenuButton`'s wiring is entirely untouched — it lives on the
+ * outer screen, which still renders here.
  */
 export default function PoolsRemoteEntry() {
   const { t } = useTranslation();
@@ -40,7 +59,11 @@ export default function PoolsRemoteEntry() {
       <PoolsStack.Screen
         name="MyPools"
         component={MyPoolsScreen}
-        options={{ title: t('pools.screens.myPools') }}
+        // Change-2026-07-08 (item 4): the outer host `PoolsStackNavigator`
+        // already renders a header (title "Ligas"/"Leagues" + the hamburger
+        // menu button) around this whole navigator — this root screen's own
+        // header was a duplicate. See this file's header comment.
+        options={{ title: t('pools.screens.myPools'), headerShown: false }}
       />
       <PoolsStack.Screen
         name="DiscoverPools"

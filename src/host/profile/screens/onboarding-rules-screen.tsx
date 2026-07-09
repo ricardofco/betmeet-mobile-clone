@@ -24,22 +24,19 @@ export function OnboardingRulesScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const wizard = useOnboardingWizardContext();
 
-  const goToNext = useCallback(() => {
-    const next = wizard.advance();
+  const handleAcknowledge = useCallback(() => {
+    const next = wizard.advance('rules', 'done');
     if (next && next !== 'complete') {
       navigation.navigate('OnboardingNotifications');
     }
   }, [navigation, wizard]);
 
-  const handleAcknowledge = useCallback(() => {
-    wizard.markDone('rules');
-    goToNext();
-  }, [wizard, goToNext]);
-
   const handleSkip = useCallback(() => {
-    wizard.markSkipped('rules');
-    goToNext();
-  }, [wizard, goToNext]);
+    const next = wizard.advance('rules', 'skipped');
+    if (next && next !== 'complete') {
+      navigation.navigate('OnboardingNotifications');
+    }
+  }, [navigation, wizard]);
 
   return (
     <Screen>

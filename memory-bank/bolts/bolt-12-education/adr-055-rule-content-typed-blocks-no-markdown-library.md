@@ -112,3 +112,32 @@ reader.
   content-rendering-mechanism choice — the probe was the direct content
   audit (`design.md §2.1`) rather than an install-and-build attempt, since
   the audit itself was sufficient to rule out needing the dependency at all.
+
+## Update (2026-07-08)
+
+A `/change` evaluation (`memory-bank/change-2026-07-08-ux-i18n-fixes.md`)
+raised a suspicion that the Rules Center's Spanish content might be an
+English alias never really translated (the same class of gap this app has
+hit before, e.g. Bolt 9's hardcoded-English `pools`-remote misses). This was
+investigated directly against `src/domain/education/rule-content.ts` and
+`betmeet-clone`'s real `content/rules/es/*.mdx` before assuming a bug
+existed:
+
+- `getFullRules(locale)`'s `'es'` branch (`ES_RULES`) was **not** an alias
+  or a copy of `EN_RULES` — it already held real, distinct Spanish prose,
+  authored by hand at Implement stage (this ADR's §"Consequences" point 2)
+  and never revisited since.
+- Diffed word-for-word against the 5 real files in
+  `betmeet-clone/content/rules/es/{scoring,penalties,match-locks,ties,pools}.mdx`
+  (the authoritative source per this ADR's original context) — every
+  paragraph/list item/example matches exactly (minus the markdown bold spans
+  this ADR already decided not to re-render, and the one `## ` heading
+  redundant with the i18n `title`).
+- **Conclusion: no bug found, no data change made.** The "typed blocks, no
+  markdown library" decision above is unchanged and still holds. Rule
+  content was already bilingual, correctly, since this bolt's original
+  Implement stage — the change-evaluation's suspicion did not hold up under
+  direct verification, and is recorded here rather than silently
+  discarded, per this repo's standing discipline of citing investigated
+  claims either way (e.g. ADR-011's reconciliation trail, ADR-047's
+  two-round icon-library probe).

@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FixtureDaySectionHeader } from '@/shared/competition';
 import { PredictionMatchCard } from '@/host/predictions/components/prediction-match-card';
@@ -56,6 +57,7 @@ export function PredictionsFixtureList({
   onResetOverride,
   resettingKey,
 }: PredictionsFixtureListProps) {
+  const { t } = useTranslation();
   const view: FixtureView = useMemo(
     () => buildFixtureView(rows.map(r => r.match), now),
     [rows, now],
@@ -117,7 +119,9 @@ export function PredictionsFixtureList({
     <View style={styles.container}>
       {hasPastMatches ? (
         <Pressable accessibilityRole="button" onPress={onTogglePastMatches} style={styles.toggle}>
-          <Text style={styles.toggleText}>{showPastMatches ? 'Hide past matches' : 'Show past matches'}</Text>
+          <Text style={styles.toggleText}>
+            {showPastMatches ? t('predictions.fixtureList.hidePast') : t('predictions.fixtureList.showPast')}
+          </Text>
         </Pressable>
       ) : null}
       <FlashList

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 /**
@@ -6,9 +7,10 @@ import { StyleSheet, Text, View } from 'react-native';
  * of scope for this bolt. Placeholder only.
  */
 export function ResetPasswordScreen() {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Password reset is coming soon.</Text>
+      <Text style={styles.text}>{t('auth.resetPasswordPlaceholder.comingSoon')}</Text>
     </View>
   );
 }

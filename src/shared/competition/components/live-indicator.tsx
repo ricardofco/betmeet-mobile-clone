@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 /**
@@ -8,9 +9,10 @@ import { StyleSheet, Text, View } from 'react-native';
  * actually changed, not the whole match card subtree.
  */
 function LiveIndicatorComponent() {
+  const { t } = useTranslation();
   return (
-    <View style={styles.pill} accessibilityLabel="Live">
-      <Text style={styles.text}>LIVE</Text>
+    <View style={styles.pill} accessibilityLabel={t('matchStatus.live')}>
+      <Text style={styles.text}>{t('common.livePill')}</Text>
     </View>
   );
 }

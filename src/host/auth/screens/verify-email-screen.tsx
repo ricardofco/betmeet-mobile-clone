@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import { UnconfirmedEmailPanel } from '@/host/auth/screens/unconfirmed-email-panel';
 
@@ -28,10 +29,9 @@ export type VerifyEmailScreenParams = {
  * branches on `reason`.
  */
 export function VerifyEmailScreen({ email, reason }: VerifyEmailScreenParams) {
+  const { t } = useTranslation();
   const heading =
-    reason === 'post-signup'
-      ? 'Check your email to finish signing up'
-      : 'Please verify your email to continue';
+    reason === 'post-signup' ? t('auth.verifyEmail.postSignup') : t('auth.verifyEmail.unconfirmedSession');
 
   return (
     <View style={styles.container}>

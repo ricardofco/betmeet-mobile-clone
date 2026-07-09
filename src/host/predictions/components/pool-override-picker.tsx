@@ -1,4 +1,5 @@
 import { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import type { PoolPickerEntry } from '@/domain/pools';
 
@@ -18,13 +19,14 @@ type PoolOverridePickerProps = {
  * asked).
  */
 function PoolOverridePickerComponent({ pools, selectedPoolId, onSelect }: PoolOverridePickerProps) {
+  const { t } = useTranslation();
   const handleSelectGlobal = useCallback(() => onSelect(null), [onSelect]);
 
   if (pools.length === 0) return null;
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
-      <Chip label="Global" selected={selectedPoolId === null} onPress={handleSelectGlobal} />
+      <Chip label={t('predictions.poolPickerGlobal')} selected={selectedPoolId === null} onPress={handleSelectGlobal} />
       {pools.map(pool => (
         <PoolChip key={pool.id} pool={pool} selected={selectedPoolId === pool.id} onSelect={onSelect} />
       ))}

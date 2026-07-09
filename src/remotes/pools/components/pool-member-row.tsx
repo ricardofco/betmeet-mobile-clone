@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { PoolMember } from '@/domain/pools';
 
@@ -15,17 +16,18 @@ type PoolMemberRowProps = {
  * §8), same discipline as `PoolListItem`.
  */
 function PoolMemberRowComponent({ member, canKick, onKick }: PoolMemberRowProps) {
+  const { t } = useTranslation();
   const handleKick = () => onKick(member.userId);
 
   return (
     <View style={styles.row}>
       <View style={styles.textColumn}>
-        <Text style={styles.nickname}>{member.nickname ?? 'Unnamed member'}</Text>
-        {member.isOwner ? <Text style={styles.ownerBadge}>Owner</Text> : null}
+        <Text style={styles.nickname}>{member.nickname ?? t('pools.memberRow.unnamedMember')}</Text>
+        {member.isOwner ? <Text style={styles.ownerBadge}>{t('pools.memberRow.owner')}</Text> : null}
       </View>
       {canKick ? (
         <Pressable accessibilityRole="button" onPress={handleKick} style={styles.kickButton}>
-          <Text style={styles.kickButtonText}>Kick</Text>
+          <Text style={styles.kickButtonText}>{t('pools.memberRow.kick')}</Text>
         </Pressable>
       ) : null}
     </View>

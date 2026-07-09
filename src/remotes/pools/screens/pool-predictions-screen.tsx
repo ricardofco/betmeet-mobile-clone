@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { FixtureDaySectionHeader } from '@/shared/competition';
 import { PredictionGridMatchCard } from '@/remotes/pools/components/prediction-grid-match-card';
@@ -40,6 +41,7 @@ function toLocalCalendarDate(isoInstant: string): string {
  * a deliberate, low-risk implementation simplification, not a scope cut).
  */
 export function PoolPredictionsScreen({ route }: Props) {
+  const { t } = useTranslation();
   const { poolId } = route.params;
   const [now] = useState(() => new Date().toISOString());
 
@@ -153,7 +155,7 @@ export function PoolPredictionsScreen({ route }: Props) {
   if (predictionsQuery.data && !predictionsQuery.data.ok) {
     return (
       <View style={styles.centered}>
-        <Text>Couldn&apos;t load this pool&apos;s predictions.</Text>
+        <Text>{t('pools.poolPredictions.loadError')}</Text>
       </View>
     );
   }

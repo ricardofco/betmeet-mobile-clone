@@ -1,11 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet } from 'react-native';
+import { Alert, Image, StyleSheet } from 'react-native';
 import { Text, XStack, YStack } from 'tamagui';
 import type { SettingsStackParamList } from '@/host/auth/navigation/auth-stack-params';
 import { useProfileQuery } from '@/host/profile/hooks/use-profile-query';
 import { useAdminAccessQuery } from '@/host/settings/hooks/use-admin-access-query';
+import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 import { Heading, MutedText, Screen } from '@/shared/design/primitives';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'AccountSettings'>;
@@ -72,6 +73,47 @@ export function AccountSettingsScreen({ navigation }: Props) {
     navigation.navigate('Admin');
   }, [navigation]);
 
+  // Change-2026-07-08 (Omitted Requirement #3) — the first real deliberate
+  // sign-out affordance for an already-authenticated user (previously
+  // `getSupabaseAdapter().signOut()` was only ever called from 3
+  // non-user-initiated places: post-account-deletion cleanup, the MFA
+  // challenge screen's escape hatch, and the guard's forced-eject path — see
+  // `memory-bank/change-2026-07-08-ux-i18n-fixes.md` for the full citation).
+  //
+  // No explicit navigation call after `signOut()` — mirrors
+  // `delete-account-screen.tsx`'s own existing `handleDelete` exactly:
+  // `AuthGatedNavigator` reacts to the now-null session automatically via
+  // `onSessionChange` (ADR-001/ADR-002), the same pipeline every other
+  // sign-out path in this app already relies on.
+  //
+  // Confirmation: a plain `Alert.alert` two-button confirm, not a
+  // Bolt-8-style typed confirm-phrase screen — this repo's one existing
+  // "are you sure" pattern for a destructive action is
+  // `DELETE_ACCOUNT_CONFIRM_PHRASE`'s type-to-confirm flow, but that is
+  // reserved for a genuinely irreversible, high-blast-radius mutation.
+  // Signing out has no data consequence at all (the user can sign back in
+  // immediately), so a lightweight native confirm is proportionate — no new
+  // custom modal/dependency added for this.
+  const handleSignOut = useCallback(() => {
+    Alert.alert(t('settings.signOutConfirm.title'), t('settings.signOutConfirm.message'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.rows.signOut'),
+        style: 'destructive',
+        onPress: () => {
+          getSupabaseAdapter()
+            .signOut()
+            .catch(() => {
+              // Best-effort, same as every other sign-out call site in this
+              // app (e.g. `AuthGatedNavigator`'s own forced-eject path) —
+              // the keychain-backed session is cleared client-side by the
+              // SDK regardless.
+            });
+        },
+      },
+    ]);
+  }, [t]);
+
   return (
     <Screen gap="$0" padding="$0">
       <YStack padding="$4" gap="$0">
@@ -98,6 +140,7 @@ export function AccountSettingsScreen({ navigation }: Props) {
         <Row label={t('settings.rows.changePassword')} onPress={handleChangePassword} />
         <Row label={t('settings.rows.changeEmail')} onPress={handleChangeEmail} />
         <Row label={t('settings.rows.twoFactor')} onPress={handleTotpEnrollment} />
+        <Row label={t('settings.rows.signOut')} onPress={handleSignOut} />
         <Row label={t('settings.rows.deleteAccount')} onPress={handleDeleteAccount} danger />
 
         {/* ADMIN-1 (design.md §10) — genuinely invisible to the ~100% of

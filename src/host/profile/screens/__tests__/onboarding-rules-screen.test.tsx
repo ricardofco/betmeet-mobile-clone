@@ -73,7 +73,7 @@ describe('OnboardingRulesScreen (EDU-3)', () => {
 
     await user.press(screen.getByRole('button', { name: 'Continue' }));
 
-    expect(wizard.markDone).toHaveBeenCalledWith('rules');
+    expect(wizard.advance).toHaveBeenCalledWith('rules', 'done');
     expect(navigation.navigate).toHaveBeenCalledWith('OnboardingNotifications');
   });
 
@@ -84,7 +84,7 @@ describe('OnboardingRulesScreen (EDU-3)', () => {
 
     await user.press(screen.getByRole('button', { name: 'Skip for now' }));
 
-    expect(wizard.markSkipped).toHaveBeenCalledWith('rules');
+    expect(wizard.advance).toHaveBeenCalledWith('rules', 'skipped');
     expect(navigation.navigate).toHaveBeenCalledWith('OnboardingNotifications');
   });
 });

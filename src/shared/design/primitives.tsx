@@ -30,6 +30,16 @@ export const Card = styled(YStack, {
   gap: '$2',
 });
 
+// Change-2026-07-08 (Home redesign, item 2) — a tappable `Card` variant.
+// `pressStyle` lives in this `styled()` definition, not as an inline JSX
+// prop at the call site, so it doesn't trip `react-native/no-inline-styles`
+// (same reasoning as `ActionCard`'s own `pressStyle`, below).
+export const PressableCard = styled(Card, {
+  name: 'PressableCard',
+  pressStyle: { backgroundColor: '$backgroundPress' },
+  accessible: true,
+});
+
 export const Row = styled(XStack, {
   name: 'Row',
   alignItems: 'center',
@@ -95,3 +105,40 @@ export const EmptyState = ({ label }: { label: string }) => (
     <MutedText>{label}</MutedText>
   </View>
 );
+
+// Change-2026-07-08 (My Pools redesign, item 4) — a tappable icon+label
+// card, generic enough to reuse anywhere a grid/row of equal-weight actions
+// is needed (not `pools`-specific despite its first consumer). Composed
+// entirely from this file's own `Card`/`BodyText` primitives + tokens, same
+// "themed primitives, never a literal hex/px value" discipline as
+// everything else here.
+export const ActionCard = styled(YStack, {
+  name: 'ActionCard',
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '$2',
+  backgroundColor: '$card',
+  borderRadius: '$3',
+  borderWidth: 1,
+  borderColor: '$borderColor',
+  paddingVertical: '$4',
+  paddingHorizontal: '$2',
+  pressStyle: { backgroundColor: '$backgroundPress' },
+  // `accessible` flattens the icon+label children into one accessible
+  // element with a computed name from the nested `Text` — without it,
+  // `accessibilityRole="button"` alone doesn't give this view a queryable
+  // accessible *name* (RNTL's `getByRole('button', { name })`/screen readers
+  // both need this), same discipline `pool-override-picker.tsx`'s `Chip`
+  // already follows for the same reason.
+  accessible: true,
+});
+
+export const ActionCardLabel = styled(Text, {
+  name: 'ActionCardLabel',
+  fontFamily: '$body',
+  fontSize: '$2',
+  fontWeight: '600',
+  color: '$color',
+  textAlign: 'center',
+});

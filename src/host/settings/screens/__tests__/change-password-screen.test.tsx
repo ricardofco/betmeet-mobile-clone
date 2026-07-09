@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { ChangePasswordScreen } from '@/host/settings/screens/change-password-screen';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
 
@@ -24,7 +25,7 @@ function buildProps() {
 
 describe('ChangePasswordScreen', () => {
   it('renders current password and new password inputs', async () => {
-    await render(<ChangePasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<ChangePasswordScreen {...buildProps()} />);
     expect(screen.getByLabelText('Current password')).toBeTruthy();
     expect(screen.getByLabelText('New password')).toBeTruthy();
   });
@@ -32,7 +33,7 @@ describe('ChangePasswordScreen', () => {
   it('shows a success message when password is changed', async () => {
     mockAdapter.changePassword.mockResolvedValue({ type: 'password-changed' });
     const user = userEvent.setup();
-    await render(<ChangePasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<ChangePasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('Current password'), 'OldPass123');
     await user.type(screen.getByLabelText('New password'), 'NewPass456');
@@ -48,7 +49,7 @@ describe('ChangePasswordScreen', () => {
       reason: 'Password must be at least 8 characters.',
     });
     const user = userEvent.setup();
-    await render(<ChangePasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<ChangePasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('Current password'), 'OldPass123');
     await user.type(screen.getByLabelText('New password'), 'short');
@@ -60,7 +61,7 @@ describe('ChangePasswordScreen', () => {
   it('shows a generic error on adapter error (hides current-password failure reason)', async () => {
     mockAdapter.changePassword.mockResolvedValue({ type: 'error' });
     const user = userEvent.setup();
-    await render(<ChangePasswordScreen {...buildProps()} />);
+    await renderWithQueryClient(<ChangePasswordScreen {...buildProps()} />);
 
     await user.type(screen.getByLabelText('Current password'), 'WrongOldPass');
     await user.type(screen.getByLabelText('New password'), 'NewPass456');

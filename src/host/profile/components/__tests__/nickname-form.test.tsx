@@ -1,4 +1,5 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent } from '@testing-library/react-native';
+import { renderWithQueryClient } from '@/host/profile/test-utils/render-with-query-client';
 import { NicknameForm } from '@/host/profile/components/nickname-form';
 import { profileApi } from '@/platform/backend-api/profile-api';
 
@@ -15,7 +16,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
   it('rejects an invalid base client-side, before any network call (PROFILE-1 AC)', async () => {
     const onSubmitted = jest.fn();
     const user = userEvent.setup();
-    await render(<NicknameForm mode="onboarding" onSubmitted={onSubmitted} />);
+    await renderWithQueryClient(<NicknameForm mode="onboarding" onSubmitted={onSubmitted} />);
 
     await user.type(screen.getByLabelText('Nickname'), 'ab');
 
@@ -26,7 +27,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
   it('checks availability after a valid, debounced format check and shows "Available"', async () => {
     mockedProfileApi.checkNicknameAvailability.mockResolvedValue({ available: true });
     const user = userEvent.setup();
-    await render(<NicknameForm mode="onboarding" onSubmitted={jest.fn()} />);
+    await renderWithQueryClient(<NicknameForm mode="onboarding" onSubmitted={jest.fn()} />);
 
     await user.type(screen.getByLabelText('Nickname'), 'validbase');
 
@@ -37,7 +38,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
   it('shows "taken" when the backend reports unavailable', async () => {
     mockedProfileApi.checkNicknameAvailability.mockResolvedValue({ available: false });
     const user = userEvent.setup();
-    await render(<NicknameForm mode="onboarding" onSubmitted={jest.fn()} />);
+    await renderWithQueryClient(<NicknameForm mode="onboarding" onSubmitted={jest.fn()} />);
 
     await user.type(screen.getByLabelText('Nickname'), 'takenbase');
 
@@ -49,7 +50,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
     mockedProfileApi.assignNickname.mockResolvedValue({ ok: true, base: 'newuser', discriminator: '0042' });
     const onSubmitted = jest.fn();
     const user = userEvent.setup();
-    await render(<NicknameForm mode="onboarding" onSubmitted={onSubmitted} />);
+    await renderWithQueryClient(<NicknameForm mode="onboarding" onSubmitted={onSubmitted} />);
 
     await user.type(screen.getByLabelText('Nickname'), 'newuser');
     await screen.findByText('Available');
@@ -65,7 +66,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
     mockedProfileApi.changeNickname.mockResolvedValue({ ok: true, base: 'changed', discriminator: '0099' });
     const onSubmitted = jest.fn();
     const user = userEvent.setup();
-    await render(
+    await renderWithQueryClient(
       <NicknameForm
         mode="settings"
         cooldown={{ onboardingCompleted: true, postOnboardingChangeCount: 0, lastChangeAt: null, now: '' }}
@@ -84,7 +85,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
   });
 
   it('ADR-011 regression: settings mode with postOnboardingChangeCount: 1 (the second post-onboarding change) is gated — input disabled, cooldown message shown', async () => {
-    await render(
+    await renderWithQueryClient(
       <NicknameForm
         mode="settings"
         cooldown={{
@@ -105,7 +106,7 @@ describe('NicknameForm (PROFILE-1, ADR-011)', () => {
     mockedProfileApi.checkNicknameAvailability.mockResolvedValue({ available: true });
     mockedProfileApi.changeNickname.mockResolvedValue({ ok: false, error: 'rate_limited' });
     const user = userEvent.setup();
-    await render(
+    await renderWithQueryClient(
       <NicknameForm
         mode="settings"
         cooldown={{ onboardingCompleted: true, postOnboardingChangeCount: 0, lastChangeAt: null, now: '' }}

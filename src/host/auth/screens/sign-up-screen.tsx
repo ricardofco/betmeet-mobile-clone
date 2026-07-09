@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { validateSignUpInput, type SignUpResult } from '@/domain/auth/sign-up';
 import { getSupabaseAdapter } from '@/platform/supabase/supabase-adapter';
@@ -13,6 +14,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
  * (design.md §5 apply-now flag: avoid boolean-prop/state-slot proliferation).
  */
 export function SignUpScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,13 +41,13 @@ export function SignUpScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create account</Text>
+      <Text style={styles.title}>{t('auth.signUp.title')}</Text>
       <TextInput
         accessibilityLabel="Email"
         autoCapitalize="none"
         keyboardType="email-address"
         onChangeText={setEmail}
-        placeholder="Email"
+        placeholder={t('auth.signUp.emailPlaceholder')}
         style={styles.input}
         value={email}
       />
@@ -53,16 +55,16 @@ export function SignUpScreen({ navigation }: Props) {
         accessibilityLabel="Password"
         autoCapitalize="none"
         onChangeText={setPassword}
-        placeholder="Password (min. 8 characters)"
+        placeholder={t('auth.signUp.passwordPlaceholder')}
         secureTextEntry
         style={styles.input}
         value={password}
       />
       {result?.type === 'validation-error' ? <Text style={styles.error}>{result.reason}</Text> : null}
-      {result?.type === 'error' ? <Text style={styles.error}>Something went wrong. Try again.</Text> : null}
-      <Button title="Sign up" onPress={handleSubmit} disabled={isSubmitting} />
+      {result?.type === 'error' ? <Text style={styles.error}>{t('auth.signUp.genericError')}</Text> : null}
+      <Button title={t('auth.signUp.submit')} onPress={handleSubmit} disabled={isSubmitting} />
       <Text accessibilityRole="button" onPress={() => navigation.navigate('SignIn')} style={styles.link}>
-        Already have an account? Sign in
+        {t('auth.signUp.haveAccount')}
       </Text>
     </View>
   );
